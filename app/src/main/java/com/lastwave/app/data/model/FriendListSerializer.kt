@@ -8,7 +8,6 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
 
 /** Same Last.fm single-object-vs-array quirk as [RecentTracksListSerializer]
  *  and [TopTrackListSerializer], applied to user.getfriends' `user` field —
@@ -20,8 +19,7 @@ object FriendListSerializer : KSerializer<List<FriendEntry>> {
     override fun deserialize(decoder: Decoder): List<FriendEntry> {
         val input = decoder as? JsonDecoder
             ?: error("FriendListSerializer only supports JSON decoding")
-        val element = input.decodeJsonElement()
-        return when (element) {
+        return when (val element = input.decodeJsonElement()) {
             is JsonArray -> element.map { input.json.decodeFromJsonElement(FriendEntry.serializer(), it) }
             is JsonObject -> listOf(input.json.decodeFromJsonElement(FriendEntry.serializer(), element))
             else -> emptyList()

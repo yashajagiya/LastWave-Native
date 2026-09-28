@@ -89,7 +89,7 @@ class AppleMusicPlaylistImporter @Inject constructor(
         val bareId = input.takeIf { it.startsWith("pl.", ignoreCase = true) }
         val target = when {
             // Apple URLs carry the storefront + slug, so fetch them verbatim.
-            isUrl -> input
+            raw.startsWith("https://", ignoreCase = true) || raw.startsWith("http://", ignoreCase = true) -> raw
             id != null -> "$FALLBACK_PLAYLIST_URL$id"
             bareId != null -> "$FALLBACK_PLAYLIST_URL$bareId"
             else -> throw IllegalArgumentException("That does not look like an Apple Music playlist link.")
@@ -253,8 +253,7 @@ class AppleMusicPlaylistImporter @Inject constructor(
         return when (element) {
             is JsonObject -> {
                 val direct = element[key] as? JsonArray
-                if (direct != null) direct
-                else element.values.firstNotNullOfOrNull { findArray(it, key, depth + 1) }
+                direct ?: element.values.firstNotNullOfOrNull { findArray(it, key, depth + 1) }
             }
             is JsonArray -> element.firstNotNullOfOrNull { findArray(it, key, depth + 1) }
             else -> null

@@ -32,8 +32,7 @@ fun qualityBadgeLabel(state: MusicPlayerState): String {
         return "$inferredDepth/${formatSampleRateKHz(rate)}kHz"
     }
     if (flacLike && depth != null) {
-        val accurateDepth = if (depth <= 16 && (rate ?: 0.0) > 48.0) 24 else depth
-        return "$accurateDepth-BIT FLAC"
+        return "$depth-BIT FLAC"
     }
     if (flacLike) {
         val parsed = parseQualityFromCodec(codec)
@@ -64,7 +63,7 @@ fun isFlacLikeCodec(codec: String?): Boolean {
     if (c.isBlank()) return false
     if (isSpatialAudioCodec(codec)) return false
     return c.contains("FLAC") || c == "LOSSLESS" || c.contains("HI-RES") || c.contains("HI_RES") ||
-        Regex("""(?:^|[^\d])(16|24|32)\s*(?:[-_]bit)?\s*[/]\s*(\d{2,3}(?:\.\d+)?)\s*k?""", RegexOption.IGNORE_CASE).containsMatchIn(c)
+        Regex("""(?:^|\D)(16|24|32)\s*(?:[-_]bit)?\s*/\s*(\d{2,3}(?:\.\d+)?)\s*k?""", RegexOption.IGNORE_CASE).containsMatchIn(c)
 }
 
 /** Format sample rate in kHz with minimal decimal places (e.g. 44.1, 48, 88.2, 96, 176.4, 192). */
@@ -132,10 +131,10 @@ internal fun inferSamplingRate(state: MusicPlayerState): Double? {
     // Prefer the rate half of an explicit "depth / rate" label ("24-BIT / 96k",
     // "16/44.1kHz"): the generic number scan below matches the FIRST number,
     // which is the bit depth (24), not the rate (96).
-    Regex("""(?:^|[^\d])(?:16|24|32)\s*(?:[-_]bit)?\s*/\s*(\d{2,3}(?:\.\d+)?)""", RegexOption.IGNORE_CASE)
+    Regex("""(?:^|\D)(?:16|24|32)\s*(?:[-_]bit)?\s*/\s*(\d{2,3}(?:\.\d+)?)""", RegexOption.IGNORE_CASE)
         .find(codec)?.groupValues?.getOrNull(1)?.toDoubleOrNull()?.takeIf { it > 0.0 }
         ?.let { return it }
-    val match = Regex("""(?:^|[^\d])(\d{2,3}(?:\.\d+)?)\s*(?:k|khz)?(?:[^\d]|$)""", RegexOption.IGNORE_CASE).find(codec)
+    val match = Regex("""(?:^|\D)(\d{2,3}(?:\.\d+)?)\s*(?:k|khz)?(?:\D|$)""", RegexOption.IGNORE_CASE).find(codec)
     if (match != null) {
         val v = match.groupValues[1].toDoubleOrNull()
         if (v != null) {
@@ -152,7 +151,7 @@ internal fun inferSamplingRate(state: MusicPlayerState): Double? {
 internal fun parseQualityFromCodec(codec: String?): String? {
     val c = codec.orEmpty()
     if (c.isBlank()) return null
-    val match = Regex("""(?:^|[^\d])(16|24|32)\s*(?:[-_]bit)?\s*[/]\s*(\d{2,3}(?:\.\d+)?)\s*k?""", RegexOption.IGNORE_CASE).find(c)
+    val match = Regex("""(?:^|\D)(16|24|32)\s*(?:[-_]bit)?\s*/\s*(\d{2,3}(?:\.\d+)?)\s*k?""", RegexOption.IGNORE_CASE).find(c)
     if (match != null) {
         var depth = match.groupValues[1].toIntOrNull() ?: 16
         val rate = match.groupValues[2].toDoubleOrNull()

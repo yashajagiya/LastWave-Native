@@ -181,7 +181,7 @@ internal object Mp4FlacRemuxer {
             cursor += 4 + blockLength
             if (firstByte and LAST_METADATA_BLOCK_FLAG != 0) break
         }
-        if (first || lastBlockStart < 0) return null
+        if (first) return null
         val end = cursor.coerceAtMost(payload.size)
         if (end <= start) return null
         val blocks = payload.copyOfRange(start, end)

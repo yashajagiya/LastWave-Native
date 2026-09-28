@@ -4,12 +4,12 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.PowerManager
 import android.graphics.Bitmap
+import android.graphics.drawable.Icon
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -52,7 +52,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -62,7 +62,7 @@ import javax.inject.Inject
 private val TOPIC_SUFFIX_REGEX = Regex("""(?i)\s*-\s*topic$""")
 private val VEVO_SUFFIX_REGEX = Regex("""(?i)\s*vevo$""")
 private val TITLE_SUFFIX_REGEX = Regex(
-    """(?i)\s*[\(\[](official\s*(music\s*)?video|official\s*audio|visualizer|audio|lyric\s*video|lyrics|hd|4k|remastered|hq)[\)\]]""",
+    """(?i)\s*[(\[](official\s*(music\s*)?video|official\s*audio|visualizer|audio|lyric\s*video|lyrics|hd|4k|remastered|hq)[)\]]""",
 )
 
 private data class CleanTrackMetadata(val title: String, val artist: String)
@@ -77,7 +77,7 @@ private fun sameServiceState(previous: MusicPlayerState, current: MusicPlayerSta
         previous.speed == current.speed &&
         previous.shuffleEnabled == current.shuffleEnabled &&
         previous.repeatMode == current.repeatMode &&
-        (previous.isPlaying || current.isPlaying || previous.positionMs == current.positionMs)
+        (previous.isPlaying || previous.positionMs == current.positionMs)
 
 /**
  * Foreground playback host and standard Android MediaSession bridge. It
@@ -145,21 +145,27 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
 
     override fun onCreate() {
         super.onCreate()
-        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val powerManager = getSystemService(POWER_SERVICE) as? PowerManager
         playbackWakeLock = powerManager?.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "LastWave:PlaybackWakeLock",
         )?.apply { setReferenceCounted(false) }
 
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager
         playbackWifiLock = wifiManager?.createWifiLock(
-            WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+            } else {
+                @Suppress("DEPRECATION")
+                WifiManager.WIFI_MODE_FULL_HIGH_PERF
+            },
             "LastWave:PlaybackWifiLock",
         )?.apply { setReferenceCounted(false) }
 
         createNotificationChannel()
         runCatching {
             val session = MediaSessionCompat(this, "LastWavePlayer").apply {
+                @Suppress("DEPRECATION")
                 setFlags(
                     MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
                         MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS,
@@ -393,7 +399,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
             mediaSession?.setPlaybackState(
                 PlaybackStateCompat.Builder()
                     .setState(PlaybackStateCompat.STATE_ERROR, musicPlayer.state.value.positionMs, 0f)
-                    .setErrorMessage(message)
+                    .setErrorMessage(PlaybackStateCompat.ERROR_CODE_APP_ERROR, message)
                     .build(),
             )
         }
@@ -665,11 +671,10 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
         nowPlayingInFlight = true
         scope.launch(Dispatchers.IO) {
             try {
-                val result = scrobbleRepository.updateNowPlaying(cleanArtist, cleanTitle, track.album)
-                when {
-                    result is ScrobbleRepository.Result.Success ->
+                when (val result = scrobbleRepository.updateNowPlaying(cleanArtist, cleanTitle, track.album)) {
+                    is ScrobbleRepository.Result.Success ->
                         debugLog.log("Now playing updated: \"$cleanTitle\" — $cleanArtist")
-                    result is ScrobbleRepository.Result.Failed && result.retryable -> {
+                    is ScrobbleRepository.Result.Failed -> if (result.retryable) {
                         // Transient (rate limit / network): clear the announced key so
                         // the 1s detector loop re-attempts once the rate shield
                         // clears, instead of leaving Now Playing silently dead for
@@ -696,7 +701,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
         detectorJob = scope.launch {
             var wasPlaying = false
             while (true) {
-                delay(1_000)
+                delay(1_000.milliseconds)
                 val state = musicPlayer.state.value
                 val track = state.current
 
@@ -951,11 +956,7 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
             android.util.Log.w("MusicPlaybackService", "Notification publish failed", error)
         }.getOrDefault(false)
 
-        if (success) {
-            notificationSignature = signature
-        } else {
-            notificationSignature = ""
-        }
+        notificationSignature = if (success) signature else ""
     }
 
     private fun requestArtwork(track: PlayableTrack?) {
@@ -1005,17 +1006,16 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
         artworkJob?.cancel()
 
         artworkJob = scope.launch {
-            val expectedUrl = cleanUrl
-            val result = kotlinx.coroutines.withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 imageLoader.execute(
                     ImageRequest.Builder(this@MusicPlaybackService)
-                        .data(expectedUrl)
+                        .data(cleanUrl)
                         .size(512)
                         .allowHardware(false)
                         .build(),
                 )
             }
-            if (expectedUrl != artworkUrl) return@launch
+            if (cleanUrl != artworkUrl) return@launch
             artworkBitmap = (result as? SuccessResult)?.drawable?.toBitmap()
             val state = musicPlayer.state.value
             publishSystemState(state)
@@ -1096,12 +1096,12 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
                 .setColor(notificationPalette.primary)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
                 .setStyle(mediaStyle)
-                .addAction(Notification.Action.Builder(R.drawable.ic_widget_skip_previous, "Previous", serviceAction(ACTION_PREVIOUS, 1)).build())
-                .addAction(Notification.Action.Builder(if (state.isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play, playPauseLabel, serviceAction(ACTION_TOGGLE, 2)).build())
-                .addAction(Notification.Action.Builder(R.drawable.ic_widget_skip_next, "Next", serviceAction(ACTION_NEXT, 3)).build())
-                .addAction(Notification.Action.Builder(R.drawable.ic_widget_shuffle, if (state.shuffleEnabled) "Shuffle on" else "Shuffle off", serviceAction(ACTION_SHUFFLE, 5)).build())
-                .addAction(Notification.Action.Builder(repeatIcon, repeatLabel, serviceAction(ACTION_REPEAT, 6)).build())
-                .addAction(Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel, "Stop", serviceAction(ACTION_STOP, 4)).build())
+                .addAction(notificationAction(R.drawable.ic_widget_skip_previous, "Previous", serviceAction(ACTION_PREVIOUS, 1)))
+                .addAction(notificationAction(if (state.isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play, playPauseLabel, serviceAction(ACTION_TOGGLE, 2)))
+                .addAction(notificationAction(R.drawable.ic_widget_skip_next, "Next", serviceAction(ACTION_NEXT, 3)))
+                .addAction(notificationAction(R.drawable.ic_widget_shuffle, if (state.shuffleEnabled) "Shuffle on" else "Shuffle off", serviceAction(ACTION_SHUFFLE, 5)))
+                .addAction(notificationAction(repeatIcon, repeatLabel, serviceAction(ACTION_REPEAT, 6)))
+                .addAction(notificationAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", serviceAction(ACTION_STOP, 4)))
                 .setColorized(true)
                 .apply {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -1163,12 +1163,12 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
             .setCustomContentView(compact)
             .setCustomBigContentView(expanded)
             .setCustomHeadsUpContentView(compact)
-            .addAction(Notification.Action.Builder(R.drawable.ic_widget_skip_previous, "Previous", serviceAction(ACTION_PREVIOUS, 1)).build())
-            .addAction(Notification.Action.Builder(if (state.isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play, if (state.isPlaying) "Pause" else "Play", serviceAction(ACTION_TOGGLE, 2)).build())
-            .addAction(Notification.Action.Builder(R.drawable.ic_widget_skip_next, "Next", serviceAction(ACTION_NEXT, 3)).build())
-            .addAction(Notification.Action.Builder(R.drawable.ic_widget_shuffle, if (state.shuffleEnabled) "Shuffle on" else "Shuffle off", serviceAction(ACTION_SHUFFLE, 5)).build())
+            .addAction(notificationAction(R.drawable.ic_widget_skip_previous, "Previous", serviceAction(ACTION_PREVIOUS, 1)))
+            .addAction(notificationAction(if (state.isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play, if (state.isPlaying) "Pause" else "Play", serviceAction(ACTION_TOGGLE, 2)))
+            .addAction(notificationAction(R.drawable.ic_widget_skip_next, "Next", serviceAction(ACTION_NEXT, 3)))
+            .addAction(notificationAction(R.drawable.ic_widget_shuffle, if (state.shuffleEnabled) "Shuffle on" else "Shuffle off", serviceAction(ACTION_SHUFFLE, 5)))
             .addAction(
-                Notification.Action.Builder(
+                notificationAction(
                     when (state.repeatMode) {
                         androidx.media3.common.Player.REPEAT_MODE_ONE -> R.drawable.ic_widget_repeat_one
                         else -> R.drawable.ic_widget_repeat
@@ -1179,9 +1179,9 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
                         else -> "Repeat off"
                     },
                     serviceAction(ACTION_REPEAT, 6),
-                ).build(),
+                ),
             )
-            .addAction(Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel, "Stop", serviceAction(ACTION_STOP, 4)).build())
+            .addAction(notificationAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", serviceAction(ACTION_STOP, 4)))
             .apply {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) setColorized(true)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -1189,6 +1189,15 @@ class MusicPlaybackService : MediaBrowserServiceCompat() {
                 }
             }
             .build()
+    }
+
+    private fun notificationAction(iconRes: Int, title: CharSequence, intent: PendingIntent): Notification.Action {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Notification.Action.Builder(Icon.createWithResource(this, iconRes), title, intent).build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Action.Builder(iconRes, title, intent).build()
+        }
     }
 
     private fun notificationRemoteViews(

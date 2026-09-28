@@ -6,7 +6,7 @@ package com.lastwave.app.util
  */
 object ArtistHelper {
     private val SEPARATOR_REGEX = Regex(
-        "(?:\\s*,\\s*|\\s*&\\s*|\\s*;\\s*|\\s*\\/\\s*|\\s*\\+\\s*|\\s+(?:ft\\.?|feat\\.?|featuring|with|and|x|X)\\s+)",
+        "\\s*,\\s*|\\s*&\\s*|\\s*;\\s*|\\s*/\\s*|\\s*\\+\\s*|\\s+(?:ft\\.?|feat\\.?|featuring|with|and|x|X)\\s+",
         RegexOption.IGNORE_CASE
     )
 
@@ -44,10 +44,9 @@ object ArtistHelper {
             .replace(Regex("\\s+"), " ")
             .trim().trim('\u2022', '\u00B7', '-', '\u2013', '\u2014', ',').trim()
         if (normalized.isBlank()) return false
-        val trimmed = normalized
-        if (STAT_PATTERN.matches(trimmed)) return true
-        if (TRACK_LABEL_PATTERN.matches(trimmed)) return true
-        val lower = trimmed.lowercase()
+        if (STAT_PATTERN.matches(normalized)) return true
+        if (TRACK_LABEL_PATTERN.matches(normalized)) return true
+        val lower = normalized.lowercase()
         // Any counter phrase with a numeric prefix is a stat, even with extra
         // words ("monthly", locale suffixes) the strict regex above missed.
         // This is what previously leaked counters through as artist names.
@@ -64,10 +63,10 @@ object ArtistHelper {
             lower.endsWith(" tracks") || lower.endsWith(" track")
         if (hasStatWord) {
             // Starts with a number ("15 ...", "3.4K ...", "1,234 ...") -> stat.
-            if (trimmed.first().isDigit()) return true
+            if (normalized.first().isDigit()) return true
             // Ends with a stat word and the prefix before it is numeric
             // ("15 ml listens" -> prefix "15 ml" is numeric+suffix).
-            val withoutLastWord = trimmed.substringBeforeLast(' ').trim()
+            val withoutLastWord = normalized.substringBeforeLast(' ').trim()
                 .removeSuffix("ly").trim()
             if (withoutLastWord.isNotBlank()) {
                 val prefixCandidate = if (lower.endsWith("listeners") || lower.endsWith("listener") ||
@@ -92,8 +91,8 @@ object ArtistHelper {
             }
         }
         // Durations ("3:45") and years ("2024") are never artists here.
-        if (trimmed.matches(Regex("""^\d{1,3}:\d{2}(?::\d{2})?$"""))) return true
-        if (trimmed.matches(Regex("""^(19|20)\d{2}$"""))) return true
+        if (normalized.matches(Regex("""^\d{1,3}:\d{2}(?::\d{2})?$"""))) return true
+        if (normalized.matches(Regex("""^(19|20)\d{2}$"""))) return true
         return false
     }
 

@@ -1,9 +1,9 @@
 package com.lastwave.app.ui.common
 
-import android.content.Intent
-import android.net.Uri
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.platform.LocalConfiguration
+
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -211,6 +210,7 @@ private fun describeLiveProvider(state: MusicPlayerState): String = when {
     else -> "YouTube Music CDN"
 }
 
+@Stable
 @HiltViewModel
 class TrackDetailsViewModel @Inject constructor(
     private val player: MusicPlayer,
@@ -579,16 +579,15 @@ class TrackDetailsViewModel @Inject constructor(
 fun TrackDetailsSheet(
     title: String,
     artist: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     album: String? = null,
     artworkUrl: String? = null,
     videoId: String? = null,
     durationMs: Long? = null,
-    onDismiss: () -> Unit,
     onPlayTrack: (() -> Unit)? = null,
     viewModel: TrackDetailsViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val specs by viewModel.specs.collectAsStateWithLifecycle()
 
@@ -614,7 +613,8 @@ fun TrackDetailsSheet(
     ) {
         EdgeToEdgeDialogWindow()
         val currentSpecs = specs ?: TrackSpecs(title = title, artist = artist, album = album, artworkUrl = artworkUrl)
-        val numberFormatter = NumberFormat.getNumberInstance(Locale.getDefault())
+        val configuration = LocalConfiguration.current
+        val numberFormatter = remember(configuration) { NumberFormat.getNumberInstance(Locale.getDefault()) }
 
         Column(
             modifier = Modifier

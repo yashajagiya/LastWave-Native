@@ -63,7 +63,7 @@ class ModuleDrmFactory @Inject constructor(
 
         override fun executeKeyRequest(uuid: UUID, request: ExoMediaDrm.KeyRequest): ByteArray {
             val drm = descriptor.drm ?: error("No DRM descriptor")
-            val url = request.licenseServerUrl?.takeIf { it.isNotBlank() } ?: drm.licenseUrl
+            val url = request.licenseServerUrl.takeIf { it.isNotBlank() } ?: drm.licenseUrl
             require(url.isNotBlank()) { "DRM licenseUrl missing" }
             return postBytes(url, descriptor.headers, request.data)
         }

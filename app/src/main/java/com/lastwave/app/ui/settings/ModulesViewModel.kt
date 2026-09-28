@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.lastwave.app.data.lossless.NativeSecrets
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import javax.inject.Inject
 
 /**
@@ -33,6 +34,7 @@ class ModulesViewModel @Inject constructor(
 
     private val refreshTick = MutableStateFlow(0)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val modules: StateFlow<List<InstalledProviderModule>> = refreshTick
         .flatMapLatest { flow { emit(moduleManager.list()) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

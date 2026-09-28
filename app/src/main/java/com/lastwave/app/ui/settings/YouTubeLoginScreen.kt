@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.LaunchedEffect
@@ -58,14 +57,14 @@ import com.lastwave.app.ui.common.adaptiveContentWidth
 @Composable
 fun YouTubeLoginScreen(
     onBack: () -> Unit,
-    onConnected: () -> Unit,
+    onConnect: () -> Unit, modifier: Modifier = Modifier,
     viewModel: YouTubeLoginViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var loadProgressVisible by remember { mutableStateOf(true) }
     var webViewError by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         val cookies = readYouTubeCookies()
         val hasSession = listOf("__Secure-3PAPISID=", "SAPISID=").any { token ->
             cookies?.contains(token) == true
@@ -76,7 +75,7 @@ fun YouTubeLoginScreen(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(
@@ -196,7 +195,7 @@ fun YouTubeLoginScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                         )
-                        Button(onClick = onConnected, shape = CircleShape) {
+                        Button(onClick = onConnect, shape = CircleShape) {
                             Text("Continue")
                         }
                     }

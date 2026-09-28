@@ -20,8 +20,8 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.QueuePlayNext
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lastwave.app.playback.MusicPlayer
 import com.lastwave.app.playback.PlayableTrack
 import com.lastwave.app.ui.player.LocalAddToPlaylist
 import com.lastwave.app.ui.player.LocalMusicPlayer
@@ -91,13 +92,14 @@ data class TrackMiniTrayData(
 fun TrackMiniTraySheet(
     data: TrackMiniTrayData,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    musicPlayer: MusicPlayer = LocalMusicPlayer.current,
+    addToPlaylist: (PlayableTrack) -> Unit = LocalAddToPlaylist.current,
     downloadViewModel: DownloadMenuViewModel = hiltViewModel(),
     artistAlbumViewModel: ArtistAlbumMenuViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState()
-    val musicPlayer = LocalMusicPlayer.current
-    val addToPlaylist = LocalAddToPlaylist.current
     val playable = remember(data) { data.toPlayable() }
     val activeDownloads by downloadViewModel.activeDownloads.collectAsStateWithLifecycle()
     val downloadQuality by downloadViewModel.downloadQuality.collectAsStateWithLifecycle()
@@ -168,10 +170,12 @@ fun TrackMiniTraySheet(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val sub = listOfNotNull(
-                        ArtistHelper.primaryArtist(data.artist).takeIf(String::isNotBlank),
-                        data.album?.takeIf(String::isNotBlank),
-                    ).joinToString(" · ")
+                    val sub = remember(data) {
+                        listOfNotNull(
+                            ArtistHelper.primaryArtist(data.artist).takeIf(String::isNotBlank),
+                            data.album?.takeIf(String::isNotBlank),
+                        ).joinToString(" · ")
+                    }
                     if (sub.isNotBlank()) {
                         Text(
                             sub,
@@ -202,7 +206,7 @@ fun TrackMiniTraySheet(
                 }
                 // 3. Add to queue
                 add { pos ->
-                    MiniTrayRow(Icons.Filled.QueueMusic, "Add to queue", position = pos) {
+                    MiniTrayRow(Icons.AutoMirrored.Filled.QueueMusic, "Add to queue", position = pos) {
                         musicPlayer.addToQueue(playable)
                         onDismiss()
                     }
@@ -240,7 +244,7 @@ fun TrackMiniTraySheet(
                 }
                 // 5. Add to playlist
                 add { pos ->
-                    MiniTrayRow(Icons.Filled.PlaylistAdd, "Add to playlist", position = pos) {
+                    MiniTrayRow(Icons.AutoMirrored.Filled.PlaylistAdd, "Add to playlist", position = pos) {
                         addToPlaylist(playable)
                         onDismiss()
                     }

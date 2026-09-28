@@ -43,7 +43,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Lyrics
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipNext
@@ -53,7 +52,6 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -68,7 +66,6 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import com.lastwave.app.ui.theme.LiquidGlassPreset
-import com.lastwave.app.ui.theme.LiquidGlassSurface
 import com.lastwave.app.ui.theme.liquidGlassChrome
 import com.lastwave.app.ui.theme.liquidGlassContainerColor
 import androidx.compose.ui.Modifier
@@ -105,9 +102,7 @@ sealed interface LyricsUiState {
         val plainLyrics: String? = null,
         val isInstrumental: Boolean = false,
         val source: String? = null,
-    ) : LyricsUiState {
-        val isRtl: Boolean get() = lines.any { it.isRtl } || isRtlText(plainLyrics)
-    }
+    ) : LyricsUiState
     data object Empty : LyricsUiState
     data class Error(val message: String) : LyricsUiState
 }
@@ -117,20 +112,20 @@ fun LyricsPanel(
     state: MusicPlayerState,
     player: MusicPlayer,
     lyricsState: LyricsUiState,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
     progressState: StateFlow<PlaybackProgressState>? = null,
     lyricsAnimation: LyricsAnimation = LyricsAnimation.APPLE_FLUID,
     wavySeekbarEnabled: Boolean = true,
-    onRetry: () -> Unit,
     onToggleFullscreen: (() -> Unit)? = null,
     isFullscreen: Boolean = false,
     onOpenLyricsOffset: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
+    liquidGlass: Boolean = LocalLiquidGlass.current,
     /** Manual sync correction (ms, + = lyrics earlier). Applies to lyric
      *  focus/highlight only — the seekbar below keeps true position. */
     lyricsOffsetMs: Long = 0L,
 ) {
     val track = state.current ?: return
-    val liquidGlass = LocalLiquidGlass.current
 
     // High-frequency live progress stream
     val progress by (progressState ?: player.progressState).collectAsStateWithLifecycle(
@@ -274,6 +269,7 @@ fun LyricsPanel(
     }
 }
 
+@Suppress("UnstableCollections")
 @Composable
 private fun SyncedLyricsList(
     lines: List<LyricLine>,
@@ -298,7 +294,6 @@ private fun SyncedLyricsList(
     // word-sync rows focus edge-to-edge on their own clock, rows without
     // syllables hold until the next row (capped through long instrumentals).
     val activeIndex = remember(lines, currentPositionMs) {
-        val pos = currentPositionMs
         var match = -1
         for (idx in lines.indices.reversed()) {
             val line = lines[idx]
@@ -318,13 +313,13 @@ private fun SyncedLyricsList(
                 else -> 5000L
             }
             val end = line.timeMs + effectiveDuration
-            if (pos >= line.timeMs && pos < end) {
+            if (currentPositionMs >= line.timeMs && currentPositionMs < end) {
                 match = idx
                 break
             }
         }
         if (match >= 0) match
-        else lines.indexOfLast { it.timeMs <= pos }
+        else lines.indexOfLast { it.timeMs <= currentPositionMs }
     }
 
     if (listState.isScrollInProgress) {
@@ -639,6 +634,7 @@ private fun SyncedLyricsList(
     }
 }
 
+@Suppress("MultipleContentEmitters")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WordByWordLyricLine(
@@ -651,8 +647,8 @@ private fun WordByWordLyricLine(
     accentColor: Color,
     animationStyle: LyricsAnimation,
     fontStyle: TextStyle,
-    isRtl: Boolean = false,
     modifier: Modifier = Modifier,
+    isRtl: Boolean = false,
 ) {
     val lineLayoutDirection = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
     val lineColor by animateColorAsState(
@@ -699,7 +695,7 @@ private fun WordByWordLyricLine(
         }
 
         Column(
-            modifier = modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.Start,
         ) {
             FlowRow(
@@ -957,12 +953,13 @@ private fun LyricsPlaybackControls(
     currentPositionMs: Long,
     totalDurationMs: Long,
     player: MusicPlayer,
+    modifier: Modifier = Modifier,
     wavySeekbarEnabled: Boolean = true,
     onToggleFullscreen: (() -> Unit)? = null,
     isFullscreen: Boolean = false,
     lyricsOffsetMs: Long = 0L,
     onOpenLyricsOffset: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
+    liquidGlass: Boolean = LocalLiquidGlass.current,
 ) {
     // This Column performs layout only. It intentionally draws no container.
     Column(
@@ -997,7 +994,12 @@ private fun LyricsPlaybackControls(
                                 scaleY = offsetScale
                             }
                             .clip(CircleShape)
-                            .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = offsetInteraction)
+                            .liquidGlassChrome(
+                                CircleShape,
+                                liquidGlass,
+                                LiquidGlassPreset.FloatingControls,
+                                interactionSource = offsetInteraction
+                            )
                             .background(
                                 liquidGlassContainerColor(
                                     if (lyricsOffsetMs != 0L) MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
@@ -1034,7 +1036,12 @@ private fun LyricsPlaybackControls(
                                 scaleY = playerScale
                             }
                             .clip(CircleShape)
-                            .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = playerInteraction)
+                            .liquidGlassChrome(
+                                CircleShape,
+                                liquidGlass,
+                                LiquidGlassPreset.FloatingControls,
+                                interactionSource = playerInteraction
+                            )
                             .background(
                                 liquidGlassContainerColor(Color.White.copy(alpha = 0.14f)),
                             ),
@@ -1119,7 +1126,12 @@ private fun LyricsPlaybackControls(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = prevInteraction)
+                        .liquidGlassChrome(
+                            CircleShape,
+                            liquidGlass,
+                            LiquidGlassPreset.FloatingControls,
+                            interactionSource = prevInteraction
+                        )
                         .background(liquidGlassContainerColor(Color.White.copy(alpha = 0.14f))),
                 ) {
                     Icon(
@@ -1137,7 +1149,12 @@ private fun LyricsPlaybackControls(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = playInteraction)
+                        .liquidGlassChrome(
+                            CircleShape,
+                            liquidGlass,
+                            LiquidGlassPreset.FloatingControls,
+                            interactionSource = playInteraction
+                        )
                         .background(liquidGlassContainerColor(Color.White.copy(alpha = 0.18f))),
                 ) {
                     if (state.isBuffering) {
@@ -1158,7 +1175,12 @@ private fun LyricsPlaybackControls(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = nextInteraction)
+                        .liquidGlassChrome(
+                            CircleShape,
+                            liquidGlass,
+                            LiquidGlassPreset.FloatingControls,
+                            interactionSource = nextInteraction
+                        )
                         .background(liquidGlassContainerColor(Color.White.copy(alpha = 0.14f))),
                 ) {
                     Icon(

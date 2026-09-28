@@ -33,7 +33,7 @@ val LocalIsDarkTheme = staticCompositionLocalOf { true }
  */
 @Composable
 fun LastWaveTheme(
-    themeState: ThemeUiState,
+    themeState: ThemeUiState, modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val isSystemDark = isSystemInDarkTheme()
@@ -64,7 +64,7 @@ fun LastWaveTheme(
     val systemLight = if (useSystemDynamic) dynamicLightColorScheme(context) else null
     val activeColorScheme = when {
         systemDark != null && isDark -> systemDark
-        systemLight != null && !isDark -> systemLight
+        systemLight != null -> systemLight
         isDark -> themeState.darkColorScheme
         else -> themeState.lightColorScheme
     }
@@ -73,12 +73,13 @@ fun LastWaveTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
+            @Suppress("DEPRECATION")
             runCatching {
                 window.statusBarColor = android.graphics.Color.TRANSPARENT
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
                 WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !isDark
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     window.isStatusBarContrastEnforced = false
                     window.isNavigationBarContrastEnforced = false
                 }

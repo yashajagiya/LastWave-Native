@@ -118,8 +118,8 @@ class UsbDacMonitor @Inject constructor(
                     ?: "USB DAC",
                 vendorId = peripheral?.vendorId ?: -1,
                 productId = peripheral?.productId ?: -1,
-                sampleRatesHz = runCatching { info.sampleRates?.toList() }.getOrNull().orEmpty(),
-                channelCounts = runCatching { info.channelCounts?.toList() }.getOrNull().orEmpty(),
+                sampleRatesHz = runCatching { info.sampleRates.toList() }.getOrNull().orEmpty(),
+                channelCounts = runCatching { info.channelCounts.toList() }.getOrNull().orEmpty(),
                 usbPermissionGranted = granted,
                 hasUsbPeripheral = peripheral != null,
                 deviceId = info.id,
@@ -133,8 +133,8 @@ class UsbDacMonitor @Inject constructor(
                 name = usb.productName?.takeIf { it.isNotBlank() } ?: "USB DAC",
                 vendorId = usb.vendorId,
                 productId = usb.productId,
-                sampleRatesHz = if (samePeripheral) previousDac?.sampleRatesHz.orEmpty() else emptyList(),
-                channelCounts = if (samePeripheral) previousDac?.channelCounts.orEmpty() else emptyList(),
+                sampleRatesHz = if (samePeripheral) previousDac.sampleRatesHz.orEmpty() else emptyList(),
+                channelCounts = if (samePeripheral) previousDac.channelCounts.orEmpty() else emptyList(),
                 usbPermissionGranted = granted,
                 hasUsbPeripheral = true,
                 deviceId = -1,
@@ -145,7 +145,7 @@ class UsbDacMonitor @Inject constructor(
                 dac == null -> false
                 dac.deviceId > 0 && current.dac?.deviceId == dac.deviceId -> true
                 dac.hasUsbPeripheral && current.dac?.vendorId == dac.vendorId &&
-                    current.dac?.productId == dac.productId -> true
+                    current.dac.productId == dac.productId -> true
                 else -> false
             }
             current.copy(

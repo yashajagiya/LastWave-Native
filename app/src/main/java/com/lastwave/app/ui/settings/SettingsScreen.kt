@@ -141,6 +141,7 @@ import com.lastwave.app.data.local.AppLanguage
 import com.lastwave.app.data.local.nativeDisplayName
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -316,6 +317,7 @@ fun SettingsScreen(
     onOpenYouTubeImport: () -> Unit = {},
     onOpenYouTubeLogin: () -> Unit = {},
     onOpenExternalImport: () -> Unit = {},
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val session by viewModel.session.collectAsStateWithLifecycle()
@@ -465,7 +467,7 @@ fun SettingsScreen(
                     start = 16.dp,
                     end = 16.dp,
                     top = 16.dp,
-                    bottom = 32.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                    bottom = 32.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                 ),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 modifier = Modifier.fillMaxSize().safeHorizontalContentPadding(),
@@ -2224,7 +2226,7 @@ fun SettingsScreen(
                 .safeHorizontalContentPadding()
                 .padding(
                     bottom = 24.dp +
-                        LocalMiniPlayerScrollClearance.current +
+                        miniPlayerScrollClearance +
                         safeDrawingBottomPadding(),
                 ),
             contentAlignment = Alignment.BottomCenter,

@@ -1,6 +1,7 @@
 package com.lastwave.app.ui.genres
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.generate.GenerateRepository
@@ -39,6 +40,7 @@ data class GenresUiState(
     val navigateToPlaylist: Boolean = false,
 )
 
+@Stable
 @HiltViewModel
 class GenresViewModel @Inject constructor(
     private val genresRepository: GenresRepository,

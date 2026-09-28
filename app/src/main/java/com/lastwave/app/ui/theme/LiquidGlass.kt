@@ -57,7 +57,6 @@ import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -105,14 +104,14 @@ typealias Backdrop = Backdrop
 @Composable
 fun rememberLayerBackdrop(
     onDraw: androidx.compose.ui.graphics.drawscope.ContentDrawScope.() -> Unit = { drawContent() },
-): LayerBackdrop? = com.kyant.backdrop.backdrops.rememberLayerBackdrop(onDraw = onDraw)
+): LayerBackdrop =rememberLayerBackdrop(onDraw = onDraw)
 
 /** Marks a composable as the source layer that sibling glass surfaces refract. */
 fun Modifier.layerBackdropCompat(backdrop: LayerBackdrop): Modifier = this.nativeBackdrop(backdrop)
 
 /** Remember a backdrop that draws a flat color + content. */
 @Composable
-fun rememberBackdrop(color: Color): LayerBackdrop? =
+fun rememberBackdrop(color: Color): LayerBackdrop =
     rememberLayerBackdrop {
         drawRect(color)
         drawContent()
@@ -320,7 +319,7 @@ fun createSquirclePath(
 @Composable
 fun LiquidGlassSurface(
     onClick: () -> Unit,
-    glassModifier: Modifier,
+    glassModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
     shape: Shape = RectangleShape,
     color: Color = MaterialTheme.colorScheme.surface,
@@ -373,8 +372,9 @@ fun isDeviceGlassCapable(): Boolean {
 }
 
 @Composable
-fun isLiquidGlassBackdropSupported(): Boolean =
-    LocalLiquidGlass.current && isDeviceGlassCapable()
+fun isLiquidGlassBackdropSupported(
+    liquidGlass: Boolean = LocalLiquidGlass.current,
+): Boolean = liquidGlass && isDeviceGlassCapable()
 
 @Composable
 fun Modifier.liquidGlassSource(
@@ -395,7 +395,9 @@ fun liquidGlassContainerColor(
 } else color
 
 @Composable
-fun isLiquidGlassEnabled(): Boolean = LocalLiquidGlass.current
+fun isLiquidGlassEnabled(
+    liquidGlass: Boolean = LocalLiquidGlass.current,
+): Boolean = liquidGlass
 
 /**
  * Press/hold state holder for a single liquid-glass surface.
@@ -525,18 +527,14 @@ fun Modifier.liquidGlass(
     shape: Shape = CircleShape,
     interactive: Boolean = true,
     highlight: Highlight = Highlight.Default,
+    liquidGlass: Boolean = LocalLiquidGlass.current,
+    isDark: Boolean = LocalIsDarkTheme.current,
 ): Modifier {
-    if (!LocalLiquidGlass.current) {
+    if (!liquidGlass || !isLiquidGlassBackdropSupported(liquidGlass)) {
         return this
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f))
     }
-    if (!isLiquidGlassBackdropSupported()) {
-        return this
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f))
-    }
-    val isDark = LocalIsDarkTheme.current
     val layer = rememberGraphicsLayer()
     val interaction = rememberGlassInteraction()
     return this.drawInteractiveGlass(
@@ -561,13 +559,14 @@ fun Modifier.liquidGlass(
     blurScale: Float = 1f,
     minScrim: Float = 0.12f,
     maxScrim: Float = 0.5f,
+    liquidGlass: Boolean = LocalLiquidGlass.current,
+    isDark: Boolean = LocalIsDarkTheme.current,
 ): Modifier {
-    if (!LocalLiquidGlass.current || !isLiquidGlassBackdropSupported()) {
+    if (!liquidGlass || !isLiquidGlassBackdropSupported(liquidGlass)) {
         return this
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f))
     }
-    val isDark = LocalIsDarkTheme.current
     val interaction = rememberGlassInteraction()
     return this.drawInteractiveGlass(
         isDark = isDark,
@@ -583,6 +582,7 @@ fun Modifier.liquidGlass(
     )
 }
 
+@Suppress("MultipleContentEmitters")
 @Composable
 fun LiquidGlassContainer(
     backdrop: Backdrop?,
@@ -604,13 +604,14 @@ fun LiquidGlassContainer(
         return
     }
     Box(
-        modifier = modifier.liquidGlass(backdrop, shape, interactive, highlight),
+        modifier = Modifier.liquidGlass(backdrop, shape, interactive, highlight),
         contentAlignment = contentAlignment,
         content = content,
     )
 }
 
 /** Floating action pill hosting icon buttons in a liquid glass shell. */
+@Suppress("MultipleContentEmitters")
 @Composable
 fun LiquidGlassActionPill(
     backdrop: Backdrop?,
@@ -629,7 +630,7 @@ fun LiquidGlassActionPill(
         return
     }
     Row(
-        modifier = modifier.liquidGlass(backdrop, shape, true, Highlight.Default),
+        modifier = Modifier.liquidGlass(backdrop, shape, true, Highlight.Default),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )

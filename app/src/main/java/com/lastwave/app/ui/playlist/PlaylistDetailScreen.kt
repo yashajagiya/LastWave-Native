@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -59,7 +58,6 @@ import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
@@ -99,7 +97,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -117,11 +114,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lastwave.app.data.generate.GeneratedTrack
 import com.lastwave.app.data.playlist.LIKED_SONGS_MODE
-import com.lastwave.app.data.playlist.SavedPlaylist
 import com.lastwave.app.data.playlist.isYouTubeOnly
 import com.lastwave.app.playback.toPlayableTrack
 import com.lastwave.app.ui.common.ArtworkImage
@@ -134,11 +129,11 @@ import com.lastwave.app.ui.common.adaptiveContentWidth
 import com.lastwave.app.ui.shell.FloatingNavDefaults
 import com.lastwave.app.ui.theme.ArtworkShape
 import com.lastwave.app.ui.theme.ExpressivePillShape
-import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import javax.inject.Inject
+import kotlin.time.Duration.Companion.seconds
 
 enum class PlaylistTrackSort(val label: String) {
     CUSTOM("Custom order"),
@@ -151,11 +146,13 @@ enum class PlaylistTrackSort(val label: String) {
 private fun formatDate(millis: Long): String =
     SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(millis))
 
+@Suppress("MultipleContentEmitters")
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistDetailScreen(
     playlistId: Long,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     onOpenPlaylist: ((Long) -> Unit)? = null,
     viewModel: PlaylistViewModel = hiltViewModel(),
 ) {
@@ -296,7 +293,7 @@ fun PlaylistDetailScreen(
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
@@ -351,7 +348,7 @@ fun PlaylistDetailScreen(
                 .align(Alignment.TopCenter),
         ) {
             // Hero Header Section
-            item(key = "hero_section") {
+            item(key = "hero_section", contentType = "hero_section") {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -807,10 +804,10 @@ fun PlaylistDetailScreen(
         }
 
         // 2. Floating Top Bar with Frosted Glass styling & Smooth Scrolled Header
-        val topBarBg by animateColorAsState(
+        val topBarBackground by animateColorAsState(
             targetValue = if (showScrolledHeader) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.98f) else Color.Transparent,
             animationSpec = tween(260),
-            label = "topBarBg",
+            label = "topBarBackground",
         )
         val topBarElevation by animateDpAsState(
             targetValue = if (showScrolledHeader) 6.dp else 0.dp,
@@ -819,7 +816,7 @@ fun PlaylistDetailScreen(
         )
 
         Surface(
-            color = topBarBg,
+            color = topBarBackground,
             tonalElevation = topBarElevation,
             shadowElevation = topBarElevation,
             modifier = Modifier
@@ -1106,7 +1103,7 @@ fun PlaylistDetailScreen(
         // Toasts
         state.toastMessage?.let { msg ->
             LaunchedEffect(msg) {
-                kotlinx.coroutines.delay(3000)
+                delay(3.seconds)
                 viewModel.dismissToast()
             }
             Surface(
@@ -1269,21 +1266,14 @@ private fun NativeTrackRow(
     val rowBackground by animateColorAsState(
         targetValue = if (isPlaying) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else Color.Transparent,
         animationSpec = tween(350),
-        label = "rowBg",
+        label = "rowBackground",
     )
 
     val rowModifier = if (isPlaying) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
-                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                    ),
-                ),
-            )
+            .background(rowBackground)
             .graphicsLayer {
                 scaleX = rowScale
                 scaleY = rowScale

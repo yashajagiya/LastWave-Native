@@ -121,7 +121,7 @@ class OutputTap(
 
     private fun maybePublishLocked() {
         val target = configuredRateHz.toLong() * configuredChannels.toLong()
-        if (windowSamples < target || target <= 0L) return
+        if (target !in 1..windowSamples) return
         val count = windowSamples.toDouble()
         val rms = sqrt(sumSquares / count).toFloat()
         val dc = (sum / count).toFloat()

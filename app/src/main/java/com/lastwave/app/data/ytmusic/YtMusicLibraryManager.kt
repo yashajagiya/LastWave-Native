@@ -38,9 +38,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.time.Duration.Companion.milliseconds
 
 @Serializable
 private data class YtCachedDetail(
@@ -127,7 +127,7 @@ class YtMusicLibraryManager @Inject constructor(
         // gives connected playlists near-real-time behavior without importing.
         applicationScope.launch {
             while (true) {
-                delay(REALTIME_REFRESH_MS)
+                delay(REALTIME_REFRESH_MS.milliseconds)
                 if (auth.connection.value.isConnected) refresh()
             }
         }

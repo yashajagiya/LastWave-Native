@@ -149,7 +149,7 @@ class RecommendationEngine(
         var score = 0.0
         val bw = if (bucketWeight <= 0) 1 else bucketWeight
 
-        if (bw >= 4) score += 50 else if (bw >= 3) score += 38 else if (bw >= 2) score += 26 else score += 12
+        score += if (bw >= 4) 50 else if (bw >= 3) 38 else if (bw >= 2) 26 else 12
 
         val artistKey = track.artist.trim().lowercase()
         val knownArtist = profile.topArtistNames.contains(artistKey) || profile.recentArtists.contains(artistKey)
@@ -389,7 +389,7 @@ class RecommendationEngine(
                 val data = rawCall(
                     mapOf(
                         "method" to "tag.gettoptracks",
-                        "tag" to tag!!,
+                        "tag" to tag,
                         "limit" to limit,
                         "page" to page.toString(),
                     ),
@@ -477,13 +477,48 @@ class RecommendationEngine(
         // back only when the fresh pool cannot fill the requested playlist.
         // Explicit recommendation exclusions remain strict throughout.
         val familiarCap = maxOf(1, total / 6)
-        var result = attempt(RECO_ARTIST_CAP, true, true, true, familiarCap)
-        if (result.size < total) result = attempt(3, true, true, true, familiarCap)
-        if (result.size < total) result = attempt(3, true, false, true, familiarCap)
-        if (result.size < total) result = attempt(3, false, false, true, familiarCap)
-        if (result.size < total) result = attempt(99, false, false, true, familiarCap)
-        if (result.size < total) result = attempt(99, false, false, true, maxOf(familiarCap, total / 3))
-        if (result.size < total) result = attempt(99, false, false, true, total)
+        var result = attempt(RECO_ARTIST_CAP,
+            albumCapOn = true,
+            genreCapOn = true,
+            freshOnly = true,
+            familiarCap = familiarCap
+        )
+        if (result.size < total) result = attempt(3,
+            albumCapOn = true,
+            genreCapOn = true,
+            freshOnly = true,
+            familiarCap = familiarCap
+        )
+        if (result.size < total) result = attempt(3,
+            albumCapOn = true,
+            genreCapOn = false,
+            freshOnly = true,
+            familiarCap = familiarCap
+        )
+        if (result.size < total) result = attempt(3,
+            albumCapOn = false,
+            genreCapOn = false,
+            freshOnly = true,
+            familiarCap = familiarCap
+        )
+        if (result.size < total) result = attempt(99,
+            albumCapOn = false,
+            genreCapOn = false,
+            freshOnly = true,
+            familiarCap = familiarCap
+        )
+        if (result.size < total) result = attempt(99,
+            albumCapOn = false,
+            genreCapOn = false,
+            freshOnly = true,
+            familiarCap = maxOf(familiarCap, total / 3)
+        )
+        if (result.size < total) result = attempt(99,
+            albumCapOn = false,
+            genreCapOn = false,
+            freshOnly = true,
+            familiarCap = total
+        )
         return result
     }
 

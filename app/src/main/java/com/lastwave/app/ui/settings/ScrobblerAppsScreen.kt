@@ -2,7 +2,6 @@ package com.lastwave.app.ui.settings
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,10 +45,13 @@ import com.lastwave.app.ui.common.safeDrawingBottomPadding
 import com.lastwave.app.ui.common.safeHorizontalContentPadding
 import com.lastwave.app.ui.common.adaptiveContentWidth
 import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
+import androidx.compose.runtime.remember
 
 @Composable
 fun ScrobblerAppsScreen(
+    modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     viewModel: ScrobblerAppsViewModel = hiltViewModel(),
 ) {
     val apps by viewModel.apps.collectAsStateWithLifecycle()
@@ -56,10 +59,13 @@ fun ScrobblerAppsScreen(
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
 
-    val detectedCount = apps.count { it.isKnownMusicPlayer }
-    val undetectedSelected = detectedCount > 0 && apps.filter { it.isKnownMusicPlayer }.any { it.packageName !in selected }
+    val detectedCount = remember { apps.count { it.isKnownMusicPlayer } }
+    val undetectedSelected = remember {
+        detectedCount > 0 && apps.filter { it.isKnownMusicPlayer }
+            .any { it.packageName !in selected }
+    }
 
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -125,7 +131,7 @@ fun ScrobblerAppsScreen(
                         start = 16.dp,
                         end = 16.dp,
                         top = 4.dp,
-                        bottom = 32.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                        bottom = 32.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                     ),
                     verticalArrangement = Arrangement.spacedBy(3.dp),
                     modifier = Modifier.safeHorizontalContentPadding(),

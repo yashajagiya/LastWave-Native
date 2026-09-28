@@ -1,6 +1,7 @@
 package com.lastwave.app.ui.feed
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.feed.FeedMix
@@ -24,7 +25,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +45,7 @@ data class FeedUiState(
     val feedData: FeedData = FeedData(),
 )
 
+@Stable
 @HiltViewModel
 class FeedViewModel @Inject constructor(
     private val repository: FeedRepository,

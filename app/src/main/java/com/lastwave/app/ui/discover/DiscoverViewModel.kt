@@ -1,5 +1,7 @@
 package com.lastwave.app.ui.discover
 
+import androidx.compose.runtime.Stable
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.artwork.ArtworkRepository
@@ -34,6 +36,7 @@ data class DiscoverUiState(
  *  refresh, Surprise Me, and Save As Playlist (order-preserving snapshot
  *  of exactly what's currently rendered, with duplicate-signature
  *  detection). */
+@Stable
 @HiltViewModel
 class DiscoverViewModel @Inject constructor(
     private val repository: DiscoverRepository,

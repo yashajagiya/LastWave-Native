@@ -10,6 +10,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 fun isRtlText(text: CharSequence?): Boolean {
     if (text.isNullOrBlank()) return false
@@ -199,7 +200,7 @@ class LyricsRepository @Inject constructor(
         var recordingIsrc: String? = knownIsrc
         var biniHit: BiniHit? = null
         if (recordingIsrc.isNullOrBlank() && wordByWord) {
-            biniHit = withTimeoutOrNull(IDENTIFY_TIMEOUT_MS) {
+            biniHit = withTimeoutOrNull(IDENTIFY_TIMEOUT_MS.milliseconds) {
                 runCatching {
                     biniApi.identify(
                         forSearchTitle(title),
@@ -210,7 +211,7 @@ class LyricsRepository @Inject constructor(
                     )
                 }.getOrNull()
             }
-            biniHit?.isrc?.takeIf { !it.isNullOrBlank() }?.let {
+            biniHit?.isrc?.takeIf { it.isNotBlank() }?.let {
                 recordingIsrc = it
                 rememberIsrc(effectiveVideoId, it)
             }
@@ -240,7 +241,7 @@ class LyricsRepository @Inject constructor(
             // result is stashed as the top fallback so a word-synced hit
             // from anywhere else still wins.
             if (preferred.isWordProvider) {
-                val single = withTimeoutOrNull(PREFERRED_HEAD_START_MS) {
+                val single = withTimeoutOrNull(PREFERRED_HEAD_START_MS.milliseconds) {
                     fetchPreferredWord(
                         preferred = preferred,
                         title = title,
@@ -265,7 +266,7 @@ class LyricsRepository @Inject constructor(
             // panel hostage. Whatever validated fallback exists at the
             // deadline still flows through the normal fallback chain below.
             var lineFallback: LyricsResult.Success? = null
-            val wordResult = withTimeoutOrNull(RACE_TOTAL_MS) {
+            val wordResult = withTimeoutOrNull(RACE_TOTAL_MS.milliseconds) {
                 coroutineScope {
                     val requests = mutableListOf(
                     async<LyricsResult.Success?> {
@@ -341,7 +342,7 @@ class LyricsRepository @Inject constructor(
             }
         }
         localLyrics?.let {
-            if (it.isWordSynced || !wordByWord) return@withContext it
+            if (it.isWordSynced) return@withContext it
             // A local line-sync copy is kept as the floor: online line-sync
             // below may still beat it, otherwise it is returned at the end.
         }
@@ -708,9 +709,9 @@ class LyricsRepository @Inject constructor(
             return true
         }
 
-        private val TIMESTAMP_REGEX = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{2,3}))?\]""")
+        private val TIMESTAMP_REGEX = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{2,3}))?]""")
         private val WORD_STAMP_REGEX = Regex("""<(\d{1,3}):(\d{2})[.:](\d{2,3})>""")
-        private val OFFSET_REGEX = Regex("""\[offset:\s*([+-]?\d+)\s*\]""", RegexOption.IGNORE_CASE)
+        private val OFFSET_REGEX = Regex("""\[offset:\s*([+-]?\d+)\s*]""", RegexOption.IGNORE_CASE)
         /**
          * Backing vocals in LRC have no role markup — convention is a fully
          * parenthesized row ("(ooh, yeah)"). Dots/brackets are timestamps,

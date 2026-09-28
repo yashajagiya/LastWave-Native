@@ -16,12 +16,12 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.graphicsLayer
 
 /**
  * The one "refresh this" trigger with an actual in-flight loading state
@@ -33,9 +33,9 @@ import androidx.compose.ui.unit.dp
 fun ExpressiveRefreshButton(
     isRefreshing: Boolean,
     onClick: () -> Unit,
-    contentDescription: String = "Refresh",
     modifier: Modifier = Modifier,
-    iconSize: Dp = 20.dp,
+    contentDescription: String = "Refresh",
+    iconSize: Dp = 20.dp
 ) {
     val rotation = remember { Animatable(0f) }
     LaunchedEffect(isRefreshing) {
@@ -65,7 +65,7 @@ fun ExpressiveRefreshButton(
             Icons.Filled.Refresh,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(iconSize).rotate(rotation.value),
+            modifier = Modifier.size(iconSize).graphicsLayer { rotationZ = rotation.value },
         )
     }
 }

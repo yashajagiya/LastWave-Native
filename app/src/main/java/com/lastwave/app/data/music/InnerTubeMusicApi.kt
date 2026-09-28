@@ -34,7 +34,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -52,6 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 data class YouTubeMusicTrack(
     val videoId: String,
@@ -335,7 +335,7 @@ class InnerTubeMusicApi @Inject constructor(
             )
             return@withContext null
         }
-        val containers = if (initialContainers.isNotEmpty()) initialContainers else listOf(root)
+        val containers = initialContainers.ifEmpty { listOf(root) }
         songs += initialSongs
 
         // Follow continuation pages until gone. Safety cap is enormous on
@@ -1035,7 +1035,8 @@ class InnerTubeMusicApi @Inject constructor(
         } else if (options.none { it.isActive }) {
             // No stored selection and no server hint: default (blank pageId) first.
             options.mapIndexed { index, option ->
-                option.copy(isActive = index == options.indexOfFirst { it.pageId.isBlank() }.takeIf { it >= 0 } ?: 0)
+                option.copy(isActive = index == (options.indexOfFirst { it.pageId.isBlank() }
+                    .takeIf { it >= 0 } ?: 0))
             }
         } else {
             options
@@ -1253,7 +1254,7 @@ class InnerTubeMusicApi @Inject constructor(
             ?: "Playlist"
 
         val shelves = playlistTrackContainers(root)
-        val containers = if (shelves.isNotEmpty()) shelves else listOf(root)
+        val containers = shelves.ifEmpty { listOf(root) }
 
         val items = mutableListOf<YtOwnedPlaylistItem>()
         val seenEntries = mutableSetOf<String>()
@@ -1286,7 +1287,7 @@ class InnerTubeMusicApi @Inject constructor(
             val nextPage = runCatching { browseContinuation(currentToken, authenticated = true) }
                 .getOrNull() ?: break
             val pageContainers = playlistTrackContainers(nextPage)
-            val effectivePageContainers = if (pageContainers.isNotEmpty()) pageContainers else listOf(nextPage)
+            val effectivePageContainers = pageContainers.ifEmpty { listOf(nextPage) }
             effectivePageContainers.forEach(::absorb)
             token = effectivePageContainers.firstNotNullOfOrNull(::playlistTrackContinuationToken)
             page++
@@ -1460,10 +1461,8 @@ class InnerTubeMusicApi @Inject constructor(
         }
         val filtered = runCatching { runSearch("EgWKAQIIAWoKEAkQBRAKEAMQBA==") }.getOrDefault(emptyList())
         // Unfiltered POST only when the filtered search came back empty (rare miss).
-        val results = (if (filtered.isEmpty()) {
+        val results = (filtered.ifEmpty {
             (runCatching { runSearch(null) }.getOrDefault(emptyList()))
-        } else {
-            filtered
         })
             .distinctBy { it.videoId }
             .filter { it.videoId.isNotBlank() }
@@ -2015,8 +2014,7 @@ class InnerTubeMusicApi @Inject constructor(
         val entry = streamCache.entries
             .asSequence()
             .filter { it.key.videoId == videoId && it.key.authScope == authScope }
-            .sortedByDescending { it.value.cachedAtEpochMs }
-            .firstOrNull() ?: return null
+            .maxByOrNull { it.value.cachedAtEpochMs } ?: return null
         val cached = entry.value
         return if (cached.stream.isFresh(cached.cachedAtEpochMs, now)) {
             cached.stream
@@ -2042,8 +2040,7 @@ class InnerTubeMusicApi @Inject constructor(
         streamCache.entries
             .asSequence()
             .filter { it.key.videoId == videoId && it.key.authScope == authScope }
-            .sortedByDescending { it.value.cachedAtEpochMs }
-            .firstOrNull()
+            .maxByOrNull { it.value.cachedAtEpochMs }
             ?.let { entry ->
                 val cached = entry.value
                 val stream = cached.stream
@@ -2078,7 +2075,7 @@ class InnerTubeMusicApi @Inject constructor(
             // Hard cap on one full resolution: without it a bad network could
             // chain every fallback stage into a 60-90s wait before the caller
             // ever got a chance to retry with fresh state.
-            kotlinx.coroutines.withTimeoutOrNull(STREAM_RESOLVE_TOTAL_TIMEOUT_MS) {
+            kotlinx.coroutines.withTimeoutOrNull(STREAM_RESOLVE_TOTAL_TIMEOUT_MS.milliseconds) {
                 shared.deferred.await()
             } ?: throw IOException("Timed out resolving audio stream for $videoId")
         } finally {
@@ -2131,11 +2128,11 @@ class InnerTubeMusicApi @Inject constructor(
                 // next, but a slow client never serializes a full timeout
                 // onto the ones behind it.
                 if (index > 0) {
-                    delay(DIRECT_FAST_STAGGER_MS * index)
+                    delay((DIRECT_FAST_STAGGER_MS * index).milliseconds)
                     if (!isActive) return@launch
                 }
                 val stream = try {
-                    kotlinx.coroutines.withTimeoutOrNull(DIRECT_FAST_CLIENT_TIMEOUT_MS) {
+                    kotlinx.coroutines.withTimeoutOrNull(DIRECT_FAST_CLIENT_TIMEOUT_MS.milliseconds) {
                         resolveDirectClientStream(
                             videoId = videoId,
                             client = client,
@@ -2159,7 +2156,7 @@ class InnerTubeMusicApi @Inject constructor(
                 }
             }
         }
-        val winner = kotlinx.coroutines.withTimeoutOrNull(DIRECT_FAST_PATH_BUDGET_MS) {
+        val winner = kotlinx.coroutines.withTimeoutOrNull(DIRECT_FAST_PATH_BUDGET_MS.milliseconds) {
             channel.receiveCatching().getOrNull()
         }
         jobs.forEach { it.cancel() }
@@ -2192,7 +2189,7 @@ class InnerTubeMusicApi @Inject constructor(
         //    Bounded so a hung cipher/config fetch fails fast into stage 2.
         //    Media3 validates the URL on open — no blocking probeStream here.
         val innerTubeXCandidate = try {
-            kotlinx.coroutines.withTimeoutOrNull(INNERTUBEX_STAGE_TIMEOUT_MS) {
+            kotlinx.coroutines.withTimeoutOrNull(INNERTUBEX_STAGE_TIMEOUT_MS.milliseconds) {
                 val visitorData = try {
                     getWebConfig().visitorData
                 } catch (cancellation: kotlinx.coroutines.CancellationException) {
@@ -2259,7 +2256,7 @@ class InnerTubeMusicApi @Inject constructor(
                 // every direct client for 10-20s on a cold cache. Only the
                 // web clients below actually need it, and they await it
                 // lazily inside their own job.
-                val poTokenResult = kotlinx.coroutines.withTimeoutOrNull(1_500L) { poTokenDeferred.await() }
+                val poTokenResult = kotlinx.coroutines.withTimeoutOrNull(1_500L.milliseconds) { poTokenDeferred.await() }
                 val poToken = poTokenResult?.playerToken
                 val gvsPoToken = poTokenResult?.sessionToken?.takeIf { config.visitorData != null }
                 val availableClients = playerClients(config).filter { candidate ->
@@ -2313,7 +2310,7 @@ class InnerTubeMusicApi @Inject constructor(
                         }
 
                         if (prioritizedClients.size > 1 && !winnerFound.get()) {
-                            delay(HEDGED_CLIENT_STAGGER_DELAY_MS)
+                            delay(HEDGED_CLIENT_STAGGER_DELAY_MS.milliseconds)
                         }
                     }
                     clientJobs.joinAll()
@@ -2351,7 +2348,7 @@ class InnerTubeMusicApi @Inject constructor(
                             val staleCipherEvidence = error is IOException &&
                                 error.message?.contains("rejected media URL") == true
                             if (staleCipherEvidence) streamExtractor.invalidatePlayerState(videoId)
-                            delay(NEWPIPE_RETRY_BASE_DELAY_MS + Random.nextLong(NEWPIPE_RETRY_JITTER_MS + 1L))
+                            delay((NEWPIPE_RETRY_BASE_DELAY_MS + Random.nextLong(NEWPIPE_RETRY_JITTER_MS + 1L)).milliseconds)
                         } else {
                             break
                         }
@@ -2369,7 +2366,7 @@ class InnerTubeMusicApi @Inject constructor(
             // Bounded wait: if neither racer produces a winner in time, fall
             // through to the last-resort stage instead of waiting for every
             // hedged client's retries to exhaust themselves.
-            val winner = kotlinx.coroutines.withTimeoutOrNull(CLIENT_RACE_TIMEOUT_MS) {
+            val winner = kotlinx.coroutines.withTimeoutOrNull(CLIENT_RACE_TIMEOUT_MS.milliseconds) {
                 channel.receiveCatching().getOrNull()
             }
             if (winner != null) {
@@ -2394,7 +2391,7 @@ class InnerTubeMusicApi @Inject constructor(
             // 3. Last resort: NewPipe, bounded so one hung extraction can't run unbounded.
             //    No pre-return probe — Media3 validates on open.
             val npStream = try {
-                kotlinx.coroutines.withTimeoutOrNull(NEWPIPE_FALLBACK_TIMEOUT_MS) {
+                kotlinx.coroutines.withTimeoutOrNull(NEWPIPE_FALLBACK_TIMEOUT_MS.milliseconds) {
                     streamExtractor.resolveAudioStream(videoId)
                 } ?: throw IOException("NewPipe fallback timed out for $videoId")
             } catch (cancellation: kotlinx.coroutines.CancellationException) {
@@ -2535,8 +2532,11 @@ class InnerTubeMusicApi @Inject constructor(
                     clientProfile = client.key,
                     authScope = authScope,
                     requestHeaders = streamRequestHeaders,
-                    expiresAtEpochMs = listOfNotNull(streamExpiryEpochMs(finalUrl), responseExpiry).minOrNull()
-                        ?: System.currentTimeMillis() + UNKNOWN_STREAM_EXPIRY_TTL_MS,
+                    expiresAtEpochMs = listOfNotNull(
+                        streamExpiryEpochMs(finalUrl),
+                        responseExpiry
+                    ).minOrNull()
+                        ?: (System.currentTimeMillis() + UNKNOWN_STREAM_EXPIRY_TTL_MS),
                 )
             }
             .filter(::isCompatibleAudioCandidate)
@@ -2586,7 +2586,7 @@ class InnerTubeMusicApi @Inject constructor(
             }
         val request = requestBuilder.build()
         val call = http.newCall(request)
-        call.timeout().timeout(STREAM_PROBE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+        call.timeout().timeout(STREAM_PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         val cancellationHandle = currentCoroutineContext()[kotlinx.coroutines.Job]
             ?.invokeOnCompletion { cause ->
                 if (cause is kotlinx.coroutines.CancellationException) call.cancel()
@@ -2673,11 +2673,11 @@ class InnerTubeMusicApi @Inject constructor(
     private fun isCompatibleAudioCandidate(stream: YouTubeAudioStream): Boolean {
         val mime = stream.mimeType.orEmpty().lowercase()
         val codec = stream.codec.orEmpty().lowercase()
-        return when {
-            mime == "audio/webm" -> codec.isBlank() || codec.contains("opus") || codec.contains("vorbis")
-            mime == "audio/mp4" || mime == "audio/m4a" -> codec.isBlank() || codec.contains("mp4a") || codec.contains("aac")
-            mime == "audio/ogg" -> codec.isBlank() || codec.contains("opus") || codec.contains("vorbis")
-            mime == "audio/mpeg" -> true
+        return when (mime) {
+            "audio/webm" -> codec.isBlank() || codec.contains("opus") || codec.contains("vorbis")
+            "audio/mp4", "audio/m4a" -> codec.isBlank() || codec.contains("mp4a") || codec.contains("aac")
+            "audio/ogg" -> codec.isBlank() || codec.contains("opus") || codec.contains("vorbis")
+            "audio/mpeg" -> true
             else -> false
         }
     }
@@ -2856,7 +2856,7 @@ class InnerTubeMusicApi @Inject constructor(
 
     private fun findConfig(html: String, key: String): String? {
         if (html.isBlank()) return null
-        val escaped = Regex("\\\"$key\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"")
+        val escaped = Regex("\"$key\"\\s*:\\s*\"([^\"]+)\"")
             .find(html)?.groupValues?.getOrNull(1)
         return escaped
             ?.replace("\\u003d", "=")
@@ -2958,18 +2958,18 @@ class InnerTubeMusicApi @Inject constructor(
                 lastException = e
                 if (attempt >= maxAttempts || !e.isTransientRequestFailure()) break
                 val exponential = REQUEST_RETRY_BASE_DELAY_MS * (1L shl (attempt - 1).coerceAtMost(3))
-                delay(exponential + Random.nextLong(REQUEST_RETRY_JITTER_MS + 1L))
+                delay((exponential + Random.nextLong(REQUEST_RETRY_JITTER_MS + 1L)).milliseconds)
             }
         }
-        throw (lastException as? IOException) ?: IOException("InnerTube call failed: ${lastException}")
+        throw (lastException as? IOException) ?: IOException("InnerTube call failed: $lastException")
     }
 
     private suspend fun okhttp3.Call.readResponseBody(): Pair<Int, String> =
         suspendCancellableCoroutine { continuation ->
             continuation.invokeOnCancellation { cancel() }
             enqueue(object : okhttp3.Callback {
-                override fun onFailure(call: okhttp3.Call, error: IOException) {
-                    continuation.resumeWithException(error)
+                override fun onFailure(call: okhttp3.Call, e: IOException) {
+                    continuation.resumeWithException(e)
                 }
 
                 override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
@@ -3275,7 +3275,7 @@ class InnerTubeMusicApi @Inject constructor(
             ?.obj("musicResponsiveListItemFlexColumnRenderer")?.obj("text")?.array("runs")
             ?.joinToString("") { it.asObject()?.string("text").orEmpty() }
             ?.trim()?.takeIf(String::isNotBlank) ?: return null
-        val details = columns?.getOrNull(1)?.asObject()
+        val details = columns.getOrNull(1)?.asObject()
             ?.obj("musicResponsiveListItemFlexColumnRenderer")?.obj("text")?.array("runs")
             ?.mapNotNull { it.asObject() }.orEmpty()
         val artist = if (kind == YouTubeMusicEntityKind.ALBUM) {
@@ -3424,13 +3424,11 @@ class InnerTubeMusicApi @Inject constructor(
         // Real artists starting with digits ("1975", "21 Savage", "30 Seconds")
         // don't contain counter words, so this is safe.
         val lower = value.lowercase()
-        if (value.firstOrNull()?.isDigit() == true &&
-            (lower.contains("listen") || lower.contains("subscrib") ||
-                lower.contains("follow") || lower.contains("monthly") ||
-                lower.contains("play") || lower.contains("view") ||
-                lower.contains("stream") || lower.contains("scrobbl"))
-        ) return false
-        return true
+        return !(value.firstOrNull()?.isDigit() == true &&
+                (lower.contains("listen") || lower.contains("subscrib") ||
+                        lower.contains("follow") || lower.contains("monthly") ||
+                        lower.contains("play") || lower.contains("view") ||
+                        lower.contains("stream") || lower.contains("scrobbl")))
     }
 
     private fun parseDuration(value: String): Int? {
@@ -3637,7 +3635,7 @@ class InnerTubeMusicApi @Inject constructor(
         const val FALLBACK_WEB_VERSION = "1.20260707.12.00"
         const val ARTIST_SEARCH_FILTER = "EgWKAQIgAWoKEAkQBRAKEAMQBA=="
         const val ALBUM_SEARCH_FILTER = "EgWKAQIYAWoKEAkQBRAKEAMQBA=="
-        val CODEC_PATTERN = Regex("""codecs?=[\"']([^\"']+)[\"']""", RegexOption.IGNORE_CASE)
+        val CODEC_PATTERN = Regex("""codecs?=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
         val PLAYER_CLIENTS = listOf(
             PlayerClient(
                 name = "ANDROID_VR",

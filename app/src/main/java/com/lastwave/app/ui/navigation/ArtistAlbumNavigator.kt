@@ -1,5 +1,6 @@
 package com.lastwave.app.ui.navigation
 
+import androidx.compose.runtime.Stable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import javax.inject.Inject
@@ -15,6 +16,7 @@ sealed interface ArtistAlbumNavTarget {
  * TrackDetailsSheet, PlayerHost, MiniPlayer, Search, etc.) seamlessly navigate to
  * native Artist and Album detail destinations without 20 levels of callback drilling.
  */
+@Stable
 @Singleton
 class ArtistAlbumNavigator @Inject constructor() {
     private val _events = MutableSharedFlow<ArtistAlbumNavTarget>(extraBufferCapacity = 1)

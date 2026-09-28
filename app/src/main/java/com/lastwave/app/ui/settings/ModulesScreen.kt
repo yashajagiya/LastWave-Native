@@ -66,9 +66,11 @@ import com.lastwave.app.data.addon.AddonHealth
  * Settings -> Provider Modules & Addons.
  * Configure external HTTP Addons or install .lwp packages, toggle, remove.
  */
+@Suppress("MultipleContentEmitters")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModulesScreen(
+    modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
     viewModel: ModulesViewModel = hiltViewModel(),
 ) {
@@ -149,6 +151,7 @@ fun ModulesScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_modules_title)) },
@@ -167,7 +170,7 @@ fun ModulesScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // --- Section 1: HTTP Addon ---
-            item {
+            item(contentType = "addon_header") {
                 Text(
                     "Streaming Addon",
                     style = MaterialTheme.typography.titleMedium,
@@ -181,7 +184,7 @@ fun ModulesScreen(
             }
 
             if (!addonUrl.isNullOrBlank()) {
-                item {
+                item(contentType = "addon_card") {
                     Card(
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.fillMaxWidth(),
@@ -273,7 +276,7 @@ fun ModulesScreen(
                     }
                 }
             } else {
-                item {
+                item(contentType = "add_addon_card") {
                     Card(
                         onClick = {
                             addonInputText = ""
@@ -306,7 +309,7 @@ fun ModulesScreen(
             }
 
             // --- Get addons: same TG channel as Support section ---
-            item {
+            item(contentType = "get_addons_card") {
                 Card(
                     onClick = { openAddonTelegramChannel(context, "clashprojects") },
                     shape = RoundedCornerShape(20.dp),
@@ -335,7 +338,7 @@ fun ModulesScreen(
             }
 
             // --- Section 2: Local .lwp Packages ---
-            item {
+            item(contentType = "packages_header") {
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -357,7 +360,7 @@ fun ModulesScreen(
                 }
             }
 
-            item {
+            item(contentType = "add_package_card") {
                 Card(
                     onClick = { if (!busy) picker.launch(arrayOf("*/*")) },
                     shape = RoundedCornerShape(20.dp),
@@ -390,7 +393,7 @@ fun ModulesScreen(
             }
 
             if (modules.isEmpty()) {
-                item {
+                item(contentType = "empty_modules") {
                     Text(
                         stringResource(R.string.settings_modules_empty),
                         style = MaterialTheme.typography.bodyMedium,
@@ -399,14 +402,14 @@ fun ModulesScreen(
                     )
                 }
             }
-            items(modules, key = { it.manifest.id }) { module ->
+            items(modules, key = { it.manifest.id }, contentType = { "module" }) { module ->
                 ModuleRow(
                     module = module,
                     onToggle = { viewModel.setEnabled(module.manifest.id, it) },
                     onRemove = { viewModel.remove(module.manifest.id) },
                 )
             }
-            item { Spacer(Modifier.height(24.dp)) }
+            item(contentType = "spacer") { Spacer(Modifier.height(24.dp)) }
         }
     }
 }

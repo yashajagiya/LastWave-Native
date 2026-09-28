@@ -5,9 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.artwork.ArtworkRepository
 import com.lastwave.app.data.generate.GenerateRepository
-import com.lastwave.app.data.generate.GeneratedTrack
-import com.lastwave.app.data.generate.RECOMMENDATION_TRACK_COUNT
-import com.lastwave.app.data.naming.PlaylistNamer
 import com.lastwave.app.data.playlist.PlaylistRepository
 import com.lastwave.app.data.playlist.PlaylistExportEvents
 import com.lastwave.app.data.playlist.SavedPlaylist
@@ -18,6 +15,7 @@ import com.lastwave.app.util.FileExportHelper
 import com.lastwave.app.util.PlaylistExportFormat
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +27,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class ExportFormat { CSV, M3U }
 enum class PlaylistSortMode { DATE_DESC, DATE_ASC, NAME, TRACK_COUNT }
@@ -63,6 +62,7 @@ data class PlaylistUiState(
  * screen becomes visible again (the Composable re-triggers it via a
  * lifecycle-aware LaunchedEffect key, not polling).
  */
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class PlaylistViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
@@ -123,7 +123,7 @@ class PlaylistViewModel @Inject constructor(
             // persists, so the order snaps back instead of sticking. The
             // optimistic detail update keeps the row under the finger; one
             // reload after the drag settles confirms the persisted order.
-            playlistRepository.changes.debounce(750L).collect { load() }
+            playlistRepository.changes.debounce(750L.milliseconds).collect { load() }
         }
         viewModelScope.launch {
             ytMusicLibraryManager.playlists.collect { remote ->
@@ -368,7 +368,7 @@ class PlaylistViewModel @Inject constructor(
                 val sorted = sortPlaylists(updatedPlaylists, current.sortMode)
                 current.copy(
                     playlists = sorted,
-                    detailPlaylist = if (current.detailPlaylist?.id == id) current.detailPlaylist?.copy(isPinned = willBePinned) else current.detailPlaylist,
+                    detailPlaylist = if (current.detailPlaylist?.id == id) current.detailPlaylist.copy(isPinned = willBePinned) else current.detailPlaylist,
                     toastMessage = if (willBePinned) "Playlist pinned to top" else "Playlist unpinned",
                 )
             }

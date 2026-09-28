@@ -2,7 +2,6 @@ package com.lastwave.app.data.repository
 
 import com.lastwave.app.data.local.SessionPreferences
 import com.lastwave.app.data.model.AlbumPageData
-import com.lastwave.app.data.model.ArtistAlbumItem
 import com.lastwave.app.data.music.InnerTubeMusicApi
 import com.lastwave.app.data.network.LastFmApiService
 import com.lastwave.app.playback.PlayableTrack
@@ -18,6 +17,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 @Singleton
 class AlbumRepository @Inject constructor(
@@ -40,7 +40,7 @@ class AlbumRepository @Inject constructor(
         // The whole resolve + load runs under one timeout so a stalled
         // lookup can never leave the screen on its spinner forever — a
         // timeout surfaces as an error with Retry instead.
-        val loaded = kotlinx.coroutines.withTimeoutOrNull(25_000L) {
+        val loaded = kotlinx.coroutines.withTimeoutOrNull(25_000L.milliseconds) {
             var targetBrowseId = browseId?.takeIf {
                 it.startsWith("MPRE") || it.startsWith("VL") || it.startsWith("OLAK") || it.startsWith("PL")
             }
@@ -124,7 +124,7 @@ class AlbumRepository @Inject constructor(
                     browseId = resolvedId.orEmpty(),
                     artworkUrl = artwork,
                     releaseYear = releaseYear,
-                    trackCountText = if (tracks == ytData?.tracks) ytData?.trackCountText else null,
+                    trackCountText = if (tracks == ytData?.tracks) ytData.trackCountText else null,
                     durationText = ytData?.durationText,
                     description = description,
                     tracks = tracks,

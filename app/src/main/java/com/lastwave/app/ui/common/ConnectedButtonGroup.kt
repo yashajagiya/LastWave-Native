@@ -1,7 +1,8 @@
+@file:Suppress("UnstableCollections")
+
 package com.lastwave.app.ui.common
 
 import androidx.compose.ui.zIndex
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -23,18 +24,22 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lastwave.app.ui.theme.M3ExpressiveShape
+import androidx.compose.ui.graphics.graphicsLayer
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class ConnectedButtonItem(
     val label: String,
     val icon: ImageVector? = null,
@@ -45,6 +50,7 @@ data class ConnectedButtonItem(
  * Replaces segmented buttons with tactile, shared-border asymmetric button groups.
  */
 @Composable
+@NonRestartableComposable
 fun ConnectedButtonGroup(
     items: List<ConnectedButtonItem>,
     selectedIndex: Int,
@@ -100,7 +106,7 @@ fun ConnectedButtonGroup(
                 modifier = Modifier
                     .weight(1f)
                     .zIndex(if (isSelected) 1f else 0f)
-                    .scale(scale)
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
                     .clickable(
                         interactionSource = interactionSource,
                         indication = ripple(),

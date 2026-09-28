@@ -1,10 +1,12 @@
 package com.lastwave.app.data.plugin
 
 import android.util.Base64
+import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.DrmInitData
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.drm.DrmSessionEventListener
 import androidx.media3.exoplayer.drm.OfflineLicenseHelper
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +28,7 @@ data class OfflineKeys(
  * the stored key set with zero network until expiry. License transport still
  * flows through the module envelope via the session manager's callback.
  */
+@OptIn(UnstableApi::class)
 @Singleton
 class ModuleOfflineLicense @Inject constructor(
     private val drmFactory: ModuleDrmFactory,
@@ -66,6 +69,7 @@ class ModuleOfflineLicense @Inject constructor(
             }.getOrNull()
         }
 
+    @OptIn(UnstableApi::class)
     private fun remainingMs(
         helper: OfflineLicenseHelper,
         keySetId: ByteArray,

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class SearchStatus { IDLE, LOADING, EMPTY, RESULTS }
 
@@ -78,7 +79,7 @@ class SearchViewModel @Inject constructor(
 
         // Fast suggestions debounce (120ms)
         suggestionsJob = viewModelScope.launch {
-            delay(120)
+            delay(120.milliseconds)
             val suggestions = repository.getSuggestions(query)
             if (_uiState.value.query == query) {
                 _uiState.update { it.copy(suggestions = suggestions) }
@@ -87,7 +88,7 @@ class SearchViewModel @Inject constructor(
 
         // Full search results debounce (400ms)
         debounceJob = viewModelScope.launch {
-            delay(400)
+            delay(400.milliseconds)
             runSearch(query, saveToHistory = false)
         }
     }
@@ -145,8 +146,7 @@ class SearchViewModel @Inject constructor(
 
     fun playResult(item: SearchResultItem) {
         searchQueueJob?.cancel()
-        val tab = _uiState.value.tab
-        when (tab) {
+        when (val tab = _uiState.value.tab) {
             SearchTab.TRACKS -> {
                 val selected = PlayableTrack(
                     title = item.name,

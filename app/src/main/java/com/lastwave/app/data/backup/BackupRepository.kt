@@ -16,7 +16,6 @@ import com.lastwave.app.data.local.readSafely
 import com.lastwave.app.data.playlist.PlaylistPublicMirror
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -135,7 +134,7 @@ class BackupRepository @Inject constructor(
                 // old schema and cannot be reconstructed; reset it safely.
                 is Int -> if (key in LONG_PREFERENCE_NAMES) longs[key] = 0L else integers[key] = value
                 is Long -> longs[key] = value
-                is Set<*> -> stringSets[key] = value.mapNotNull { it as? String }.toSet()
+                is Set<*> -> stringSets[key] = value.filterIsInstance<String>().toSet()
                 else -> Unit
             }
         }

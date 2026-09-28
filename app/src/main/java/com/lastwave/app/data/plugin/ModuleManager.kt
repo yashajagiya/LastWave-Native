@@ -114,14 +114,14 @@ class ModuleManager @Inject constructor(
             if (!manifest.encrypted || manifest.enc?.keyId.isNullOrBlank()) {
                 return@withContext ModuleInstallResult.Rejected("Refused: config is not encrypted")
             }
-            if (manifest.enc?.alg != "AES-256-GCM" || manifest.enc?.format != "LWP2") {
+            if (manifest.enc.alg != "AES-256-GCM" || manifest.enc.format != "LWP2") {
                 return@withContext ModuleInstallResult.Rejected("Refused: need LWP2 config")
             }
-            if (manifest.enc?.files?.contains("config.json") != true) {
+            if (!manifest.enc.files.contains("config.json")) {
                 return@withContext ModuleInstallResult.Rejected("Refused: config.json not in enc.files")
             }
             // loadKey constant-time binds keyId; null = wrong build / repack.
-            val keyId = manifest.enc?.keyId
+            val keyId = manifest.enc.keyId
             val key = crypto.loadKey(keyId)
                 ?: return@withContext ModuleInstallResult.Rejected("Refused: module key does not match this build")
             try {

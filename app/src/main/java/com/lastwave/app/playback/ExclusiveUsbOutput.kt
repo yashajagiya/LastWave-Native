@@ -1,4 +1,3 @@
-@file:OptIn(androidx.media3.common.util.UnstableApi::class)
 
 package com.lastwave.app.playback
 
@@ -12,10 +11,12 @@ import android.hardware.usb.UsbManager
 import android.media.AudioManager
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.util.UnstableApi
 import com.decent.usbaudio.UsbAudioDevice
 import com.decent.usbaudio.UsbAudioStream
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -207,6 +208,7 @@ class ExclusiveUsbOutput @Inject constructor(
     }
 
     /** Re-anchor the Media3 clock after an explicit seek. */
+    @OptIn(UnstableApi::class)
     fun noteSeek(positionUs: Long) {
         val timeUs = positionUs.coerceAtLeast(0L)
         val rate = configuredRateHz.coerceAtLeast(1)
@@ -225,15 +227,14 @@ class ExclusiveUsbOutput @Inject constructor(
 
     fun syncListeningGain() {
         val stream = readStreamMusicGain() ?: return
-        val next = stream
         if (lastAppliedCombined.isFinite() &&
-            kotlin.math.abs(next - listeningGain) < 1e-4f
+            kotlin.math.abs(stream - listeningGain) < 1e-4f
         ) {
-            listeningGain = next
+            listeningGain = stream
             return
         }
         synchronized(lock) {
-            listeningGain = next
+            listeningGain = stream
             applyVolumeLocked()
         }
     }
@@ -246,6 +247,7 @@ class ExclusiveUsbOutput @Inject constructor(
      * native source-rate behavior. The clock check below compares against
      * the actually-requested rate either way.
      */
+    @OptIn(UnstableApi::class)
     fun configure(
         format: Format,
         rateOverrideHz: Int? = null,
@@ -335,6 +337,7 @@ class ExclusiveUsbOutput @Inject constructor(
         return true
     }
 
+    @OptIn(UnstableApi::class)
     fun getCurrentPositionUs(): Long {
         val running = stream ?: return androidx.media3.exoplayer.audio.AudioSink.CURRENT_POSITION_NOT_SET
         if (!active || configuredRateHz <= 0 || startMediaTimeNeedsInit) {
@@ -436,6 +439,7 @@ class ExclusiveUsbOutput @Inject constructor(
         }
     }
 
+    @OptIn(UnstableApi::class)
     private fun configureLocked(
         sampleRate: Int,
         channelCount: Int,
@@ -562,11 +566,11 @@ class ExclusiveUsbOutput @Inject constructor(
                 }
         }
         if (selectedOut == null) return failLocked("alt $alt has no isochronous OUT endpoint")
-        val selectedFeedback = selected?.let { iface ->
+        val selectedFeedback = selected.let { iface ->
             (0 until iface.endpointCount).map { iface.getEndpoint(it) }
                 .firstOrNull {
                     it.type == UsbConstants.USB_ENDPOINT_XFER_ISOC &&
-                        it.direction == UsbConstants.USB_DIR_IN
+                            it.direction == UsbConstants.USB_DIR_IN
                 }
         }
         val maxPacket = isoPacketBytes(selectedOut.maxPacketSize)
@@ -851,6 +855,7 @@ class ExclusiveUsbOutput @Inject constructor(
             return frames * bpf
         }
 
+        @OptIn(UnstableApi::class)
         fun sourceBitDepth(encoding: Int): Int = when (encoding) {
             C.ENCODING_PCM_16BIT, RAW_PCM16 -> 16
             C.ENCODING_PCM_24BIT, RAW_PCM24 -> 24
@@ -858,6 +863,7 @@ class ExclusiveUsbOutput @Inject constructor(
             else -> 0
         }
 
+        @OptIn(UnstableApi::class)
         fun writeRawEncoding(encoding: Int): Int = when (encoding) {
             C.ENCODING_PCM_16BIT, RAW_PCM16 -> RAW_PCM16
             C.ENCODING_PCM_24BIT, RAW_PCM24 -> RAW_PCM24

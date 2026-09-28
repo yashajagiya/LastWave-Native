@@ -1,24 +1,16 @@
 package com.lastwave.app.data.lossless
 
 import android.util.Log
-import com.lastwave.app.data.artwork.awaitSuccessfulBodyOrNull
 import com.lastwave.app.data.plugin.ModuleManager
 import com.lastwave.app.data.addon.AddonClient
-import com.lastwave.app.data.addon.AddonTrack
-import com.lastwave.app.data.addon.AddonStream
 import com.lastwave.app.data.local.SettingsPreferences
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import okhttp3.CertificatePinner
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONObject
-import java.net.URLEncoder
 import java.text.Normalizer
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -221,7 +213,7 @@ class LosslessMusicApi @Inject constructor(
             fun fromObject(obj: JSONObject?): AtmosManifestRef? {
                 if (obj == null) return null
                 sequenceOf("uri", "url", "manifestUrl", "mpdUrl").forEach { key ->
-                    val value = obj.optString(key)?.takeIf { it.isNotBlank() } ?: return@forEach
+                    val value = obj.optString(key).takeIf { it.isNotBlank() } ?: return@forEach
                     if (value.startsWith("http", ignoreCase = true)) {
                         return AtmosManifestRef(mpdUri = value)
                     }
@@ -292,11 +284,11 @@ class LosslessMusicApi @Inject constructor(
         private val TOPIC_CHANNEL_SUFFIX = Regex("""(?i)\s*[-–—]\s*topic\s*$|\s+topic\s*$""")
         private val PIPE_NOISE = Regex("""\s*\|.*$""")
         private val SOUNDTRACK_SUFFIX = Regex(
-            """(?i)\s*[\[(]\s*from\s+(?:the\s+(?:original\s+)?(?:motion\s+picture|movie|film|soundtrack)\s+)?["“][^"”\r\n]+["”]\s*[\])]\s*$""",
+            """(?i)\s*[\[(]\s*from\s+(?:the\s+(?:original\s+)?(?:motion\s+picture|movie|film|soundtrack)\s+)?["“][^"”\r\n]+["”]\s*[])]\s*$""",
         )
         private val FEATURING_CLAUSE = Regex("""(?i)(?:\s*[\[(])?\s*(feat\.?|ft\.?|featuring)\s+.*$""")
         private val BRACKETED_DISPLAY_NOISE = Regex(
-            """(?i)[\[(]\s*(?:explicit|clean|(?:official\s+)?(?:music\s+)?(?:audio|video|lyrics?|lyric\s+video|visualizer|hd|4k|mv|full\s+song|full\s+audio|prod\.?\s*(?:by\s*)?[^\])]+))\s*[\])]""",
+            """(?i)[\[(]\s*(?:explicit|clean|(?:official\s+)?(?:music\s+)?(?:audio|video|lyrics?|lyric\s+video|visualizer|hd|4k|mv|full\s+song|full\s+audio|prod\.?\s*(?:by\s*)?[^])]+))\s*[])]""",
         )
         private val TRAILING_DISPLAY_NOISE = Regex("""(?i)\s*[-–—]\s*(?:official\s+)?(?:music\s+)?(?:audio|video|lyrics?|visualizer|mv|full\s+song)\s*$""")
         private val ARTIST_NOISE_WORDS = setOf("the", "and", "feat", "ft", "featuring", "with", "x", "topic")
@@ -487,10 +479,10 @@ class LosslessMusicApi @Inject constructor(
             val wantAtmos = q == "atmos"
             val targetCandidates = if (wantAtmos) {
                 val atmosMatches = ordered.filter { it.isAtmos || it.isSpatial }
-                if (atmosMatches.isNotEmpty()) atmosMatches else listOf(ordered.first())
+                atmosMatches.ifEmpty { listOf(ordered.first()) }
             } else {
                 val stereoMatches = ordered.filter { !it.isAtmos && !it.isSpatial }
-                if (stereoMatches.isNotEmpty()) stereoMatches else ordered
+                stereoMatches.ifEmpty { ordered }
             }
 
             // Hi-res tier scans wider: a silently-downgraded 16-bit answer
@@ -542,7 +534,7 @@ class LosslessMusicApi @Inject constructor(
                 }
                 val formatId = when {
                     isStreamAtmos -> QUALITY_DOLBY_ATMOS
-                    effectiveBitDepth > 16 || effectiveSampleRate > 48000.0 || isHiResFlagged -> {
+                    effectiveBitDepth > 16 || effectiveSampleRate > 48000.0 -> {
                         if (effectiveSampleRate > 96000.0) QUALITY_MAX_HI_RES else QUALITY_HI_RES_96
                     }
                     stream.codec.equals("flac", ignoreCase = true) || effectiveBitDepth == 16 -> QUALITY_CD_LOSSLESS
@@ -654,8 +646,7 @@ class LosslessMusicApi @Inject constructor(
 
         val maxDurationDifference = when {
             isExactMatch && artistExact && !variantMismatch -> 12
-            isExactMatch || artistExact -> 8
-            else -> MAX_DURATION_DIFFERENCE_SECONDS
+            else -> 8
         }
         val durationDifference = if (expectedDurationSeconds != null && expectedDurationSeconds > 0) {
             if (item.duration <= 0) {

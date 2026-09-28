@@ -56,7 +56,7 @@ class LikedSongsManager @Inject constructor(
         val currentlyLiked = existing?.tracks?.any { it.key == track.key } == true
         if (currentlyLiked) {
             playlistRepository.replaceTracksForSync(
-                existing!!.id,
+                existing.id,
                 existing.tracks.filterNot { it.key == track.key },
             )
             refresh()

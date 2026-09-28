@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Reports songs genuinely listened to in LastWave to the connected YouTube
@@ -145,7 +146,7 @@ class YtMusicHistorySyncManager @Inject constructor(
         ) {
             listenedMs += minOf(delta, elapsed)
         }
-        if (track == null || !advancing || listenedMs < requiredListenMs(s.durationMs)) return
+        if (!advancing || listenedMs < requiredListenMs(s.durationMs)) return
         submittedSessionId = sessionId
         Log.d(TAG, "Listen qualified after ${listenedMs / 1000}s; preparing history submission")
         launchSubmit(
@@ -226,19 +227,18 @@ class YtMusicHistorySyncManager @Inject constructor(
                     ?: throw IOException("No history tracking URL for $videoId")
                 trackingUrl = baseUrl
                 if (!preferences.historySyncEnabled.first() || ytAuth.connection.value != pending.account) return
-                val code = innerTube.submitHistoryPlayback(baseUrl, cpn, pending.account)
-                when {
-                    code in 200..299 -> {
+                when (val code = innerTube.submitHistoryPlayback(baseUrl, cpn, pending.account)) {
+                    in 200..299 -> {
                         Log.d(TAG, "History ping accepted for $videoId (HTTP $code); remote visibility not verified")
                         return
                     }
-                    code == 401 || code == 403 -> {
+                    401, 403 -> {
                         // Stale/revoked credentials. Drop without retry and
                         // without touching playback; the user can reconnect.
                         Log.w(TAG, "History auth failure (HTTP $code); dropping $videoId")
                         return
                     }
-                    code == 408 || code == 429 || code in 500..599 -> {
+                    408, 429, in 500..599 -> {
                         Log.w(TAG, "History transient HTTP $code for $videoId (attempt $attempt)")
                     }
                     else -> {
@@ -269,7 +269,7 @@ class YtMusicHistorySyncManager @Inject constructor(
             } catch (e: Exception) {
                 Log.w(TAG, "History attempt $attempt failed for $videoId: ${e.javaClass.simpleName}")
             }
-            if (attempt < MAX_SUBMIT_ATTEMPTS) delay(RETRY_BASE_DELAY_MS * attempt)
+            if (attempt < MAX_SUBMIT_ATTEMPTS) delay((RETRY_BASE_DELAY_MS * attempt).milliseconds)
         }
         Log.w(TAG, "History giving up on $videoId after $MAX_SUBMIT_ATTEMPTS attempts")
     }

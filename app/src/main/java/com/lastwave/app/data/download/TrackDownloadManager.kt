@@ -13,9 +13,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
+import androidx.media3.common.util.UnstableApi
 import com.lastwave.app.MainActivity
-import com.lastwave.app.R
 import com.lastwave.app.data.local.db.DownloadedTrackDao
 import com.lastwave.app.data.local.db.DownloadedTrackEntity
 import com.lastwave.app.data.lyrics.LyricsRepository
@@ -59,6 +60,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.ConnectionPool
@@ -122,6 +124,7 @@ private class DownloadProtocolException(message: String) : IOException(message)
 private class DownloadInterruptedException(message: String, cause: Throwable? = null) :
     IOException(message, cause)
 
+@OptIn(UnstableApi::class)
 @Singleton
 class TrackDownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -197,7 +200,7 @@ class TrackDownloadManager @Inject constructor(
             context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         }.getOrNull()
     }
-    private val activeKeys = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val activeKeys = ConcurrentHashMap.newKeySet<String>()
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val activeUris = ConcurrentHashMap<String, Uri>()
     private val activeFiles = ConcurrentHashMap<String, File>()
@@ -275,7 +278,6 @@ class TrackDownloadManager @Inject constructor(
         useAlbumArtist: Boolean = true,
         primaryOnly: Boolean = true,
     ): String {
-        if (structure == DownloadFolderStructure.FLAT) return ""
         var folderArtist = (if (useAlbumArtist) albumArtist?.takeIf { it.isNotBlank() } else null)
             ?: artist
         if (primaryOnly) folderArtist = primaryArtistName(folderArtist)
@@ -404,6 +406,7 @@ class TrackDownloadManager @Inject constructor(
         return true
     }
 
+    @OptIn(UnstableApi::class)
     fun downloadTrack(
         title: String,
         artist: String,
@@ -550,7 +553,7 @@ class TrackDownloadManager @Inject constructor(
                 if (preloadedBestMatch != null) {
                     val cleanMatchArtist = preloadedBestMatch.artist
                         .takeUnless { ArtistHelper.isPlayCountOrStat(it) }
-                    if (artistWasStat && cleanMatchArtist != null && cleanMatchArtist.isNotBlank()) {
+                    if (artistWasStat && !cleanMatchArtist.isNullOrBlank()) {
                         safeArtist = cleanMatchArtist.trim()
                     }
                     if (resolvedArtworkUrl == null) {
@@ -563,8 +566,8 @@ class TrackDownloadManager @Inject constructor(
                     }
                 }
                 if (resolvedAlbum != null) {
-                    resolvedAlbum = resolvedAlbum?.trim()
-                        ?.takeUnless { ArtistHelper.isPlayCountOrStat(it) }
+                    resolvedAlbum = resolvedAlbum.trim()
+                        .takeUnless { ArtistHelper.isPlayCountOrStat(it) }
                         ?.takeIf { it.isNotBlank() }
                 }
                 // Final sanitized values for tagging, filenames, folders and DB.
@@ -582,7 +585,7 @@ class TrackDownloadManager @Inject constructor(
                         val cacheKey = ArtworkNormalizer.cacheKey(finalTitle, finalArtist)
                         artworkRepository.resolved.value[cacheKey]
                             ?.takeIf { ArtworkNormalizer.isRealImage(it) }
-                            ?: kotlinx.coroutines.withTimeoutOrNull(3_500L) {
+                            ?: kotlinx.coroutines.withTimeoutOrNull(3_500L.milliseconds) {
                                 artworkRepository.resolved.first { it.containsKey(cacheKey) }[cacheKey]
                             }?.takeIf { ArtworkNormalizer.isRealImage(it) }
                     }
@@ -670,7 +673,7 @@ class TrackDownloadManager @Inject constructor(
                     }
                     for (downloadQuality in qualitiesToAttempt) {
                     try {
-                        val expectedDurationSec = durationMs?.takeIf { it > 0 }?.let { (it / 1000L).toInt() }
+                        val expectedDurationSec = durationMs.takeIf { it > 0 }?.let { (it / 1000L).toInt() }
                             ?: preloadedBestMatch?.durationSeconds?.takeIf { it > 0 }
                         val losslessStream = runCatching {
                             losslessMusicApi.resolveStream(
@@ -825,8 +828,8 @@ class TrackDownloadManager @Inject constructor(
                                         title = title,
                                         artist = artist,
                                         formatBadge = formatBadge,
-                                        initUrl = dashInitUrl!!,
-                                        mediaTemplate = dashMediaTemplate!!,
+                                        initUrl = dashInitUrl,
+                                        mediaTemplate = dashMediaTemplate,
                                         segmentCount = dashSegmentCount,
                                         headers = downloadHeaders,
                                         target = rawFile,
@@ -839,7 +842,7 @@ class TrackDownloadManager @Inject constructor(
                                     val progressLock = Any()
                                     val transfer = downloadToTempFile(
                                         downloadKey = key,
-                                        url = checkNotNull(resolvedUrl),
+                                        url = resolvedUrl,
                                         target = rawFile,
                                         requestHeaders = downloadHeaders,
                                         expectedContentLength = expectedContentLength,
@@ -1029,7 +1032,7 @@ class TrackDownloadManager @Inject constructor(
                         val progressLock = Any()
                         val transfer = downloadToTempFile(
                             downloadKey = key,
-                            url = checkNotNull(resolvedUrl),
+                            url = resolvedUrl,
                             target = rawFile,
                             requestHeaders = downloadHeaders,
                             expectedContentLength = expectedContentLength,
@@ -1120,7 +1123,6 @@ class TrackDownloadManager @Inject constructor(
                         if (useParallelDownload && !hasExpectedContainer(rawFile, extension)) {
                             throw IOException("Downloaded payload is not a valid ${extension.uppercase()} audio file")
                         }
-                        downloadSucceeded = true
                     } catch (cancellation: CancellationException) {
                         throw cancellation
                     } catch (ytError: Throwable) {
@@ -1432,13 +1434,13 @@ class TrackDownloadManager @Inject constructor(
                 // file plays without network. Skipped when transcoding already
                 // produced a plain FLAC, or the bytes arrived clear (3a).
                 if (moduleDescriptor?.drm != null && transcodedFlac == null && !moduleClear) {
-                    val drm = moduleDescriptor!!.drm!!
+                    val drm = moduleDescriptor.drm
                     val keys = try {
                         moduleLicenseDeferred?.await()
                     } catch (_: Exception) {
                         null
                     } ?: throw IOException("Offline license refused by provider; retry while online")
-                    val withKeys = moduleDescriptor!!.copy(drm = drm.copy(keySetIdB64 = keys.keySetIdB64))
+                    val withKeys = moduleDescriptor.copy(drm = drm.copy(keySetIdB64 = keys.keySetIdB64))
                     moduleManager.writeOfflineSidecar(
                         finalTitle, finalArtist,
                         OfflineSidecar(
@@ -1635,8 +1637,8 @@ class TrackDownloadManager @Inject constructor(
         val call = downloadClient.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
-            override fun onFailure(call: Call, error: IOException) {
-                if (continuation.isActive) continuation.resumeWithException(error)
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isActive) continuation.resumeWithException(e)
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -1729,8 +1731,8 @@ class TrackDownloadManager @Inject constructor(
         )
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
-            override fun onFailure(call: Call, error: IOException) {
-                if (continuation.isActive) continuation.resumeWithException(error)
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isActive) continuation.resumeWithException(e)
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -1923,7 +1925,7 @@ class TrackDownloadManager @Inject constructor(
             // 2. Download media segments in order and append directly to the file
             for (segIndex in 1..segmentCount) {
                 currentCoroutineContext().ensureActive()
-                val segUrl = mediaTemplate.replace("\$Number\$", segIndex.toString())
+                val segUrl = mediaTemplate.replace($$"$Number$", segIndex.toString())
                 val segReq = Request.Builder()
                     .url(segUrl)
                     .apply {
@@ -2002,7 +2004,7 @@ class TrackDownloadManager @Inject constructor(
             currentCoroutineContext().ensureActive()
             if (reconnectGeneration.get() != observedGeneration) return
             if (elapsedMs >= retryDelayMs && hasUsableNetwork()) return
-            delay(RECONNECT_POLL_INTERVAL_MS)
+            delay(RECONNECT_POLL_INTERVAL_MS.milliseconds)
             elapsedMs += RECONNECT_POLL_INTERVAL_MS
         }
     }
@@ -2212,7 +2214,7 @@ class TrackDownloadManager @Inject constructor(
             }
             val downloadContentValues = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, filename)
-                put(MediaStore.Downloads.MIME_TYPE, if (mimeType.isNotBlank()) mimeType else "application/octet-stream")
+                put(MediaStore.Downloads.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
                 put(MediaStore.Downloads.RELATIVE_PATH, downloadsRelativePath)
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
@@ -2685,7 +2687,7 @@ class TrackDownloadManager @Inject constructor(
                             .takeUnless { ArtistHelper.isPlayCountOrStat(it) }
                         ?: "Unknown Artist"
                     }
-                    artist = artist!!.trim().ifBlank { "Unknown Artist" }
+                    artist = artist.trim().ifBlank { "Unknown Artist" }
                     val trackKey = makeDownloadKey(title, artist)
                     if (trackKey in existingKeys) continue
 

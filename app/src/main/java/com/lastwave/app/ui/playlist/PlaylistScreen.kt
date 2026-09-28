@@ -4,7 +4,6 @@ import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -12,8 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +32,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -43,21 +39,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -81,8 +72,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,7 +87,6 @@ import com.lastwave.app.data.playlist.SavedPlaylist
 import com.lastwave.app.data.playlist.LIKED_SONGS_MODE
 import com.lastwave.app.data.playlist.isYouTubeOnly
 import com.lastwave.app.playback.toPlayableTrack
-import com.lastwave.app.ui.common.ArtworkImage
 import com.lastwave.app.ui.common.ExpressiveHeader
 import com.lastwave.app.ui.common.PlaylistCover
 import com.lastwave.app.ui.common.TrackContextMenuSheet
@@ -107,6 +98,7 @@ import com.lastwave.app.ui.theme.ExpressivePillShape
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Faithful port of playlist.js's saved-playlists screen (§4): card list
@@ -116,17 +108,18 @@ import java.util.Locale
  * menu (§1.7) with Copy + Delete Scrobble enabled (this screen's full
  * capability set, matching the original's playlist.js menu exactly).
  */
+@Suppress("MultipleContentEmitters")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistScreen(
+    modifier: Modifier = Modifier,
     onOpenPlaylist: (Long) -> Unit = {},
-    viewModel: PlaylistViewModel = hiltViewModel(),
+    viewModel: PlaylistViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val musicPlayer = com.lastwave.app.ui.player.LocalMusicPlayer.current
     val playbackState by musicPlayer.chromeState.collectAsStateWithLifecycle()
-    val addToPlaylist = com.lastwave.app.ui.player.LocalAddToPlaylist.current
     var coverEditorPlaylistId by remember { mutableStateOf<Long?>(null) }
     var coverPickerPlaylistId by remember { mutableStateOf<Long?>(null) }
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -149,7 +142,7 @@ fun PlaylistScreen(
 
     var menuTarget by remember { mutableStateOf<Pair<Long, GeneratedTrack>?>(null) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -236,9 +229,9 @@ fun PlaylistScreen(
                         }
 
                         if (state.justSavedBannerVisible) {
-                            item(key = "banner") {
-                                LaunchedEffect(state.justSavedBannerVisible) {
-                                    kotlinx.coroutines.delay(3000)
+                            item(key = "banner", contentType = "contentType2") {
+                                LaunchedEffect(viewModel) {
+                                    kotlinx.coroutines.delay(3000.milliseconds)
                                     viewModel.dismissJustSavedBanner()
                                 }
                                 Surface(
@@ -261,13 +254,20 @@ fun PlaylistScreen(
                         // animateItem() crashes Lazy layout at the scroll edge
                         // ("key was already used" / anchor OOB). Ids are unique
                         // Room PKs so they are stable across reorder.
-                        itemsIndexed(state.playlists, key = { _, playlist -> playlist.id }) { index, playlist ->
+                        itemsIndexed(
+                            items = state.playlists,
+                            key = { _, playlist -> playlist.id },
+                            contentType = { _, _ -> "contentType3" },
+        ) { index, playlist ->
                             val isNewest = playlist.id == state.newestId
                             Box(Modifier.animateItem()) {
                                 PlaylistCard(
                                     playlist = playlist,
                                     isNewest = isNewest,
-                                    position = com.lastwave.app.ui.common.groupPositionFor(index, state.playlists.size),
+                                    position = com.lastwave.app.ui.common.groupPositionFor(
+                                        index,
+                                        state.playlists.size
+                                    ),
                                     isRegenerating = state.regeneratingId == playlist.id,
                                     currentTrack = playbackState.current,
                                     isPlaying = playbackState.isPlaying,
@@ -302,7 +302,7 @@ fun PlaylistScreen(
 
         state.toastMessage?.let { msg ->
             LaunchedEffect(msg) {
-                kotlinx.coroutines.delay(3000)
+                kotlinx.coroutines.delay(3000.milliseconds)
                 viewModel.dismissToast()
             }
             Surface(
@@ -523,7 +523,7 @@ private fun PlaylistCard(
     onMakeLocal: () -> Unit,
     onPlay: () -> Unit,
 ) {
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = LocalClipboardManager.current
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val isThisPlaylistPlaying = isPlaying && playbackSource == playlist.title
     var menuExpanded by remember { mutableStateOf(false) }
@@ -574,7 +574,7 @@ private fun PlaylistCard(
                     },
                     onLongClick = {
                         haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(playlist.title))
+                        clipboard.setText(AnnotatedString(playlist.title))
                     },
                 )
                 .padding(14.dp),

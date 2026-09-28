@@ -1,3 +1,5 @@
+@file:Suppress("UnstableCollections")
+
 package com.lastwave.app.ui.feed
 
 import androidx.compose.animation.core.RepeatMode
@@ -36,6 +38,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ExpandMore
@@ -136,6 +139,7 @@ fun FeedScreen(
     onOpenSearch: () -> Unit,
     onOpenDiscover: () -> Unit,
     onOpenFeedPlaylist: (String) -> Unit,
+    modifier: Modifier = Modifier,
     onOpenPlaylist: (Long) -> Unit = {},
     onOpenGenerator: () -> Unit = {},
     onOpenFriends: () -> Unit = {},
@@ -1717,7 +1721,7 @@ private fun ChartTrackCard(
                         name = track.title,
                         artist = ArtistHelper.primaryArtist(track.artist),
                         embeddedUrl = track.artworkUrl,
-                        fallbackIcon = Icons.Filled.TrendingUp,
+                        fallbackIcon = Icons.AutoMirrored.Filled.TrendingUp,
                         modifier = Modifier.fillMaxSize(),
                     )
                     Box(

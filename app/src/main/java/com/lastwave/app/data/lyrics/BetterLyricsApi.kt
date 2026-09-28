@@ -210,7 +210,8 @@ class BetterLyricsApi @Inject constructor(
                     "plainLyrics", "syncedLyrics", "line", "lines", "lyric",
                     "data", "result", "response",
                 )
-                keys.asSequence().mapNotNull { element[it]?.let { v -> extractContent(v) } }.firstOrNull()
+                keys
+                    .firstNotNullOfOrNull { element[it]?.let { v -> extractContent(v) } }
             }
         }
     }

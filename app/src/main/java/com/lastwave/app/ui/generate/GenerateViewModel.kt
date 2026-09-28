@@ -1,6 +1,7 @@
 package com.lastwave.app.ui.generate
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.generate.GenerateRepository
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val GENERATION_TIMEOUT_MS = 60_000L
 
@@ -75,6 +77,7 @@ sealed interface GenerateNavEvent {
     data class NavigateToPlaylistLoading(val playlistId: Long? = null) : GenerateNavEvent
 }
 
+@Stable
 @HiltViewModel
 class GenerateViewModel @Inject constructor(
     private val repository: GenerateRepository,
@@ -242,7 +245,7 @@ class GenerateViewModel @Inject constructor(
                     (targetCount + maxOf(10, targetCount / 2)).coerceAtMost(60)
                 }
 
-                val raw: List<GeneratedTrack> = withTimeout(GENERATION_TIMEOUT_MS) {
+                val raw: List<GeneratedTrack> = withTimeout(GENERATION_TIMEOUT_MS.milliseconds) {
                     when (mode) {
                         GenerateMode.TOP -> repository.fetchTopTracks(candidateCount, state.period)
                         GenerateMode.LIBRARY -> repository.fetchTopTracks(candidateCount, state.period)
@@ -280,14 +283,19 @@ class GenerateViewModel @Inject constructor(
                     )
                 }
                 if (finalTracks.isEmpty()) {
-                    val message = if (mode == GenerateMode.SIMILAR_TRACKS && state.seedTrackName.isNotBlank()) {
-                        "No similar songs found to mix for \"${state.seedTrackName}\"."
-                    } else if (mode == GenerateMode.SIMILAR_ARTISTS && state.seedArtistQuery.isNotBlank()) {
-                        "No similar artists found for \"${state.seedArtistQuery}\"."
-                    } else if (mode == GenerateMode.TAG && state.tagInput.isNotBlank()) {
-                        "No songs found for tag \"${state.tagInput}\"."
-                    } else {
-                        "No songs found to create this mix."
+                    val message = when (mode) {
+                        GenerateMode.SIMILAR_TRACKS if state.seedTrackName.isNotBlank() -> {
+                            "No similar songs found to mix for \"${state.seedTrackName}\"."
+                        }
+                        GenerateMode.SIMILAR_ARTISTS if state.seedArtistQuery.isNotBlank() -> {
+                            "No similar artists found for \"${state.seedArtistQuery}\"."
+                        }
+                        GenerateMode.TAG if state.tagInput.isNotBlank() -> {
+                            "No songs found for tag \"${state.tagInput}\"."
+                        }
+                        else -> {
+                            "No songs found to create this mix."
+                        }
                     }
                     throw IllegalStateException(message)
                 }

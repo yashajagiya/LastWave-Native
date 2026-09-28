@@ -11,8 +11,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -23,6 +23,7 @@ import kotlinx.serialization.json.contentOrNull
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "ArtworkPipeline"
 private const val CRASH_TAG = "ArtworkCrash"
@@ -146,7 +147,7 @@ class ArtworkRepository @Inject constructor(
                     channel.trySend("youtube" to fetchYouTubeMusic(name, artist))
                 }
                 try {
-                    kotlinx.coroutines.withTimeoutOrNull(3_000L) {
+                    kotlinx.coroutines.withTimeoutOrNull(3_000L.milliseconds) {
                         repeat(3) {
                             val (provider, url) = channel.receive()
                             if (!url.isNullOrBlank()) return@withTimeoutOrNull provider to url
@@ -179,13 +180,13 @@ class ArtworkRepository @Inject constructor(
             val body = http.newCall(req).awaitSuccessfulBodyOrNull() ?: return@withContext null
             val jsonEl = json.parseToJsonElement(body) as? kotlinx.serialization.json.JsonObject
             val data = jsonEl?.get("data") as? kotlinx.serialization.json.JsonArray
-            val items = data?.mapNotNull { it as? kotlinx.serialization.json.JsonObject }.orEmpty()
+            val items = data?.filterIsInstance<kotlinx.serialization.json.JsonObject>().orEmpty()
             val best = items.maxByOrNull { deezerScore(it, name, artist) }
                 ?.takeIf { deezerVerified(it, name, artist) } ?: return@withContext null
-            val album = best.get("album") as? kotlinx.serialization.json.JsonObject
+            val album = best["album"] as? kotlinx.serialization.json.JsonObject
             (album?.get("cover_big") as? kotlinx.serialization.json.JsonPrimitive)?.content
                 ?: (album?.get("cover_xl") as? kotlinx.serialization.json.JsonPrimitive)?.content
-                ?: ((best.get("artist") as? kotlinx.serialization.json.JsonObject)?.get("picture_xl") as? kotlinx.serialization.json.JsonPrimitive)?.content
+                ?: ((best["artist"] as? kotlinx.serialization.json.JsonObject)?.get("picture_xl") as? kotlinx.serialization.json.JsonPrimitive)?.content
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Exception) {
@@ -344,7 +345,7 @@ class ArtworkRepository @Inject constructor(
         // batch pre-warms even after the client itself could handle more.
         items.chunked(10).forEach { batch ->
             coroutineScope {
-                batch.map { (name, artist) -> launch { resolve(name, artist) } }.forEach { it.join() }
+                batch.map { (name, artist) -> launch { resolve(name, artist) } }.joinAll()
             }
         }
     }

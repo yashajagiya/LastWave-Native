@@ -3,8 +3,6 @@ package com.lastwave.app.data.music.potoken
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.util.LruCache
 import android.webkit.JavascriptInterface
@@ -13,10 +11,8 @@ import android.webkit.WebViewClient
 import androidx.annotation.MainThread
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -28,10 +24,10 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.milliseconds
 
 data class PoTokenResult(
     val playerToken: String,
@@ -97,7 +93,7 @@ object BotGuardTokenGenerator {
         if (permanentlyBroken || sessionId.isBlank() || !hasUsableWebView()) return
         if (System.currentTimeMillis() < bootstrapCooldownUntilMs) return
         runCatching {
-            withTimeoutOrNull(COLD_START_TIMEOUT_MS) {
+            withTimeoutOrNull(COLD_START_TIMEOUT_MS.milliseconds) {
                 ensureEngineReady(ctx, sessionId)
             }
         }
@@ -124,7 +120,7 @@ object BotGuardTokenGenerator {
         val timeout = if (!isEngineReadyForSession(sessionId)) COLD_START_TIMEOUT_MS else WARM_TIMEOUT_MS
 
         return try {
-            withTimeoutOrNull(timeout) {
+            withTimeoutOrNull(timeout.milliseconds) {
                 val result = mintTokenInternal(ctx, videoId, sessionId, forceNewEngine = false)
                 mutex.withLock {
                     playerTokenCache.put(videoId, result.playerToken)

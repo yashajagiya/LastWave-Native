@@ -11,6 +11,7 @@ import android.provider.Settings
 import com.lastwave.app.MainActivity
 import com.lastwave.app.service.MediaScrobbleListenerService
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * From-scratch widget controls.
@@ -118,7 +119,7 @@ object WidgetActions {
         }.isSuccess
         if (!succeeded) return
         WidgetUpdater.setPlaying(context, !wasPlaying)
-        delay(300)
+        delay(300.milliseconds)
         val confirmed = runCatching { controller.playbackState?.state }.getOrNull()
         val confirmedPlaying = when (confirmed) {
             PlaybackState.STATE_PLAYING, PlaybackState.STATE_BUFFERING -> true

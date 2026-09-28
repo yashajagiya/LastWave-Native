@@ -1,4 +1,8 @@
+@file:OptIn(UnstableApi::class)
+
 package com.lastwave.app.playback
+
+import androidx.compose.runtime.Stable
 
 import android.content.Context
 import android.content.Intent
@@ -183,6 +187,7 @@ data class PlaybackProgressState(
  * queue, ensuring the app UI and system controls always operate on the same
  * player instance.
  */
+@Stable
 @OptIn(UnstableApi::class)
 @Singleton
 class MusicPlayer @Inject constructor(

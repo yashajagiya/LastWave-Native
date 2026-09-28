@@ -37,7 +37,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -49,11 +48,9 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Icon
@@ -70,7 +67,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
@@ -88,7 +84,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.lastwave.app.data.model.ArtistAlbumItem
-import com.lastwave.app.data.model.ArtistPageData
 import com.lastwave.app.data.model.ArtistSummaryItem
 import com.lastwave.app.playback.PlayableTrack
 import com.lastwave.app.ui.common.ArtworkImage
@@ -99,20 +94,25 @@ import com.lastwave.app.ui.common.TrackMenuTarget
 import com.lastwave.app.ui.common.safeDrawingBottomPadding
 import com.lastwave.app.ui.common.adaptiveContentWidth
 import com.lastwave.app.ui.genres.GenreExplorer
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.unit.Dp
 import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
 import com.lastwave.app.ui.player.LocalMusicPlayer
 import com.lastwave.app.ui.player.PlayingWaveBars
+import androidx.compose.runtime.mutableIntStateOf
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ArtistDetailScreen(
     artistName: String,
-    browseId: String? = null,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
+    browseId: String? = null,
     onOpenAlbum: (title: String, artist: String, browseId: String?) -> Unit = { _, _, _ -> },
     onOpenArtist: (name: String, browseId: String?) -> Unit = { _, _ -> },
     viewModel: ArtistViewModel = hiltViewModel(),
-    genreBridge: ArtistDetailGenreBridge = hiltViewModel(),
+    genreBridge: ArtistDetailGenreBridge = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val musicPlayer = LocalMusicPlayer.current
@@ -193,7 +193,7 @@ fun ArtistDetailScreen(
                         start = 16.dp,
                         end = 16.dp,
                         top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 56.dp,
-                        bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                        bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier
@@ -225,7 +225,7 @@ fun ArtistDetailScreen(
                                     listOfNotNull(data.artworkUrl, data.bannerUrl, data.fallbackArtworkUrl)
                                         .filter(com.lastwave.app.data.artwork.ArtworkNormalizer::isRealImage).distinct()
                                 }
-                                var artworkIndex by remember(data) { mutableStateOf(0) }
+                                var artworkIndex by remember(data) { mutableIntStateOf(0) }
                                 val artistArtwork = artworkCandidates.getOrNull(artworkIndex)
                                 if (artistArtwork != null) {
                                     AsyncImage(
@@ -927,6 +927,7 @@ private fun SimilarArtistCard(
     }
 }
 
+@Stable
 @dagger.hilt.android.lifecycle.HiltViewModel
 class ArtistDetailGenreBridge @javax.inject.Inject constructor(
     val genreExplorer: GenreExplorer,

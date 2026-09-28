@@ -8,7 +8,6 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
 
 /** Same Last.fm single-object-vs-array quirk as [RecentTracksListSerializer],
  *  applied to user.gettoptracks' `track` field. */
@@ -18,8 +17,7 @@ object TopTrackListSerializer : KSerializer<TopTrackList> {
     override fun deserialize(decoder: Decoder): TopTrackList {
         val input = decoder as? JsonDecoder
             ?: error("TopTrackListSerializer only supports JSON decoding")
-        val element = input.decodeJsonElement()
-        val tracks = when (element) {
+        val tracks = when (val element = input.decodeJsonElement()) {
             is JsonArray -> element.map { input.json.decodeFromJsonElement(TopTrackEntry.serializer(), it) }
             is JsonObject -> listOf(input.json.decodeFromJsonElement(TopTrackEntry.serializer(), element))
             else -> emptyList()

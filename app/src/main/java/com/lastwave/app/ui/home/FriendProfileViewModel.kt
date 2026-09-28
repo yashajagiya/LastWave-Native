@@ -1,6 +1,7 @@
 package com.lastwave.app.ui.home
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.local.SettingsPreferences
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class FriendProfileTab(val label: String) {
     RECENT("Recent"),
@@ -49,6 +51,7 @@ data class FriendProfileUiState(
     val error: String? = null,
 )
 
+@Stable
 @HiltViewModel
 class FriendProfileViewModel @Inject constructor(
     private val homeRepository: HomeRepository,
@@ -180,7 +183,7 @@ class FriendProfileViewModel @Inject constructor(
         pollJob?.cancel()
         pollJob = viewModelScope.launch(Dispatchers.IO) {
             while (isActive) {
-                delay(20_000L)
+                delay(20_000L.milliseconds)
                 val username = currentUsername
                 if (username.isNotBlank()) {
                     runCatching {

@@ -121,7 +121,7 @@ class UacFeatureVolume(
             val subRes = ((buf[base + 4].toInt() and 0xFF) or ((buf[base + 5].toInt() and 0xFF) shl 8)).toShort().toInt()
             if (subMin < overallMin) overallMin = subMin
             if (subMax > overallMax) overallMax = subMax
-            if (subRes > 0 && subRes < bestRes) bestRes = subRes
+            if (subRes in 1..<bestRes) bestRes = subRes
         }
         if (overallMin >= overallMax) return null
         return Triple(

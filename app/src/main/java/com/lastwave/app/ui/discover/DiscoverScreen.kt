@@ -1,5 +1,7 @@
 package com.lastwave.app.ui.discover
 
+import androidx.compose.ui.unit.Dp
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -111,7 +113,12 @@ private fun shimmerBrush(): Brush {
 }
 
 @Composable
-fun DiscoverScreen(onBack: () -> Unit = {}, viewModel: DiscoverViewModel = hiltViewModel()) {
+fun DiscoverScreen(
+    modifier: Modifier = Modifier,
+    onBack: () -> Unit = {},
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
+    viewModel: DiscoverViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val musicPlayer = LocalMusicPlayer.current
     val playbackState by musicPlayer.chromeState.collectAsStateWithLifecycle()
@@ -165,7 +172,7 @@ fun DiscoverScreen(onBack: () -> Unit = {}, viewModel: DiscoverViewModel = hiltV
                             start = 16.dp,
                             end = 16.dp,
                             top = 16.dp,
-                            bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                            bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                         ),
                         verticalArrangement = Arrangement.spacedBy(GroupGap),
                     ) {
@@ -202,7 +209,7 @@ fun DiscoverScreen(onBack: () -> Unit = {}, viewModel: DiscoverViewModel = hiltV
                             start = 16.dp,
                             end = 16.dp,
                             top = 12.dp,
-                            bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding()
+                            bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding()
                         ),
                         verticalArrangement = Arrangement.spacedBy(GroupGap),
                         modifier = Modifier,

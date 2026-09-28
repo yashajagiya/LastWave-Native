@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -181,7 +180,7 @@ private fun Modifier.drawGlowBackground(color: Color, secondaryColor: Color): Mo
 fun HeaderActionIcon(
     icon: ImageVector,
     contentDescription: String?,
-    onClick: () -> Unit,
+    onClick: () -> Unit, modifier: Modifier = Modifier,
 ) {
     FilledTonalIconButton(
         onClick = onClick,

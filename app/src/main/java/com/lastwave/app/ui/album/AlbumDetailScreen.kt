@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -42,7 +41,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,13 +60,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -80,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lastwave.app.data.model.ArtistAlbumItem
+import com.lastwave.app.playback.MusicPlayer
 import com.lastwave.app.playback.PlayableTrack
 import com.lastwave.app.ui.common.ArtworkImage
 import com.lastwave.app.ui.common.ExpressiveLoadingIndicator
@@ -89,6 +85,7 @@ import com.lastwave.app.ui.common.TrackMenuTarget
 import com.lastwave.app.ui.common.safeDrawingBottomPadding
 import com.lastwave.app.ui.common.safeHorizontalContentPadding
 import com.lastwave.app.ui.common.adaptiveContentWidth
+import androidx.compose.ui.unit.Dp
 import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
 import com.lastwave.app.ui.player.LocalMusicPlayer
 import com.lastwave.app.ui.player.PlayingWaveBars
@@ -97,15 +94,17 @@ import com.lastwave.app.ui.player.PlayingWaveBars
 @Composable
 fun AlbumDetailScreen(
     albumTitle: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    musicPlayer: MusicPlayer = LocalMusicPlayer.current,
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     artistName: String = "",
     browseId: String? = null,
-    onBack: () -> Unit,
     onOpenArtist: (name: String, browseId: String?) -> Unit = { _, _ -> },
     onOpenAlbum: (title: String, artist: String, browseId: String?) -> Unit = { _, _, _ -> },
-    viewModel: AlbumViewModel = hiltViewModel(),
+    viewModel: AlbumViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val musicPlayer = LocalMusicPlayer.current
     val playbackState by musicPlayer.chromeState.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
 
@@ -188,7 +187,7 @@ fun AlbumDetailScreen(
                         start = 16.dp,
                         end = 16.dp,
                         top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 56.dp,
-                        bottom = 32.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                        bottom = 32.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                     ),
                     modifier = Modifier
                         .fillMaxSize()
@@ -285,10 +284,12 @@ fun AlbumDetailScreen(
                             }
 
                             // Metadata Pill (Year, Duration) — track count is in the Tracks header
-                            val metaText = listOfNotNull(
-                                data.releaseYear,
-                                data.durationText,
-                            ).joinToString(" \u2022 ")
+                            val metaText = remember {
+                                listOfNotNull(
+                                    data.releaseYear,
+                                    data.durationText,
+                                ).joinToString(" \u2022 ")
+                            }
 
                             if (metaText.isNotBlank()) {
                                 Spacer(Modifier.height(8.dp))

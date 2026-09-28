@@ -3,11 +3,8 @@
 package com.lastwave.app.ui.settings
 
 import com.lastwave.app.ui.common.PredictiveBackScreen
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
@@ -38,8 +35,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.Sort
+import com.lastwave.app.playback.MusicPlayer
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudOff
@@ -54,8 +53,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
@@ -66,7 +63,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -99,10 +95,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lastwave.app.data.download.DownloadProgress
+import com.lastwave.app.data.local.DownloadFolderStructure
 import com.lastwave.app.data.local.db.DownloadedTrackEntity
 import com.lastwave.app.ui.common.ArtworkImage
 import com.lastwave.app.ui.common.ExpressiveHeader
@@ -110,8 +106,6 @@ import com.lastwave.app.ui.common.GroupPosition
 import com.lastwave.app.ui.common.adaptiveContentWidth
 import com.lastwave.app.ui.common.groupPositionFor
 import com.lastwave.app.ui.common.groupShape
-import com.lastwave.app.ui.common.safeDrawingBottomPadding
-import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
 import com.lastwave.app.ui.player.LocalMusicPlayer
 import com.lastwave.app.ui.player.PlayingWaveBars
 import com.lastwave.app.ui.shell.FloatingNavDefaults
@@ -185,8 +179,9 @@ sealed interface DownloadSubView {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadsScreen(
+    modifier: Modifier = Modifier, musicPlayer: MusicPlayer = LocalMusicPlayer.current,
     onBack: (() -> Unit)? = null,
-    viewModel: DownloadsViewModel = hiltViewModel(),
+    viewModel: DownloadsViewModel = hiltViewModel()
 ) {
     val tracks by viewModel.downloadedTracks.collectAsStateWithLifecycle()
     val artists by viewModel.downloadedArtists.collectAsStateWithLifecycle()
@@ -199,10 +194,10 @@ fun DownloadsScreen(
     val useAlbumArtistForFolders by viewModel.useAlbumArtistForFolders.collectAsStateWithLifecycle()
     val primaryArtistOnly by viewModel.primaryArtistOnly.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
-    val activeDownloads = activeDownloadsMap.values.filter { !it.isFinished && it.error == null }
+    val activeDownloads =
+        remember { activeDownloadsMap.values.filter { !it.isFinished && it.error == null } }
 
     val haptic = LocalHapticFeedback.current
-    val musicPlayer = LocalMusicPlayer.current
     val playbackState by musicPlayer.chromeState.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableStateOf(DownloadTab.SONGS) }
@@ -262,7 +257,7 @@ fun DownloadsScreen(
         enabled = subViewStack.size > 1,
         onBack = { popSubView() },
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -282,25 +277,46 @@ fun DownloadsScreen(
                 is DownloadSubView.AlbumDetail -> currentSubView.albumTitle
             }
 
-            val headerSubtitle = when (currentSubView) {
-                is DownloadSubView.Root -> "${tracks.size} songs \u2022 ${artists.size} artists \u2022 $totalSizeText"
-                is DownloadSubView.ArtistDetail -> {
-                    val aTracks = tracks.filter {
-                        it.artist.equals(currentSubView.artistName, ignoreCase = true) ||
-                            it.artist.contains(currentSubView.artistName, ignoreCase = true)
+            val headerSubtitle = remember {
+                when (currentSubView) {
+                    is DownloadSubView.Root -> "${tracks.size} songs \u2022 ${artists.size} artists \u2022 $totalSizeText"
+                    is DownloadSubView.ArtistDetail -> {
+                        val aTracks = tracks.filter {
+                            it.artist.equals(currentSubView.artistName, ignoreCase = true) ||
+                                    it.artist.contains(currentSubView.artistName, ignoreCase = true)
+                        }
+                        val aAlbums = aTracks.map { it.album.trim() }
+                            .filter { it.isNotBlank() && !it.equals("Singles", ignoreCase = true) }
+                            .distinct()
+                        "${aTracks.size} songs \u2022 ${aAlbums.size} albums \u2022 ${
+                            formatBytes(
+                                aTracks.sumOf { it.fileSizeBytes })
+                        }"
                     }
-                    val aAlbums = aTracks.map { it.album.trim() }.filter { it.isNotBlank() && !it.equals("Singles", ignoreCase = true) }.distinct()
-                    "${aTracks.size} songs \u2022 ${aAlbums.size} albums \u2022 ${formatBytes(aTracks.sumOf { it.fileSizeBytes })}"
-                }
-                is DownloadSubView.AlbumDetail -> {
-                    val alTracks = tracks.filter {
-                        it.album.trim().equals(currentSubView.albumTitle.trim(), ignoreCase = true) &&
-                            (currentSubView.artistName.isBlank() ||
-                                it.artist.equals(currentSubView.artistName, ignoreCase = true) ||
-                                it.artist.contains(currentSubView.artistName, ignoreCase = true) ||
-                                currentSubView.artistName.contains(it.artist, ignoreCase = true))
+
+                    is DownloadSubView.AlbumDetail -> {
+                        val alTracks = tracks.filter {
+                            it.album.trim()
+                                .equals(currentSubView.albumTitle.trim(), ignoreCase = true) &&
+                                    (currentSubView.artistName.isBlank() ||
+                                            it.artist.equals(
+                                                currentSubView.artistName,
+                                                ignoreCase = true
+                                            ) ||
+                                            it.artist.contains(
+                                                currentSubView.artistName,
+                                                ignoreCase = true
+                                            ) ||
+                                            currentSubView.artistName.contains(
+                                                it.artist,
+                                                ignoreCase = true
+                                            ))
+                        }
+                        "${currentSubView.artistName} \u2022 ${alTracks.size} tracks \u2022 ${
+                            formatBytes(
+                                alTracks.sumOf { it.fileSizeBytes })
+                        }"
                     }
-                    "${currentSubView.artistName} \u2022 ${alTracks.size} tracks \u2022 ${formatBytes(alTracks.sumOf { it.fileSizeBytes })}"
                 }
             }
 
@@ -1065,7 +1081,7 @@ private fun DownloadTabBar(
                 }
                 val bgColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent,
-                    label = "tabBg",
+                    label = "tabBackground",
                 )
                 val textColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1279,8 +1295,6 @@ private fun DownloadedSongsList(
     playbackState: com.lastwave.app.playback.PlaybackChromeState,
     totalSizeText: String,
     downloadFolder: String,
-    downloadLocationLabel: String? = null,
-    downloadStructure: com.lastwave.app.data.local.DownloadFolderStructure,
     onPlayTrack: (DownloadedTrackEntity) -> Unit,
     onPlayNext: (DownloadedTrackEntity) -> Unit,
     onAddToQueue: (DownloadedTrackEntity) -> Unit,
@@ -1291,6 +1305,8 @@ private fun DownloadedSongsList(
     onCancelDownload: (String) -> Unit,
     onOpenFileManager: () -> Unit,
     onChangeFolder: () -> Unit,
+    downloadLocationLabel: String? = null,
+    downloadStructure: DownloadFolderStructure = DownloadFolderStructure.FLAT,
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -1305,7 +1321,7 @@ private fun DownloadedSongsList(
         modifier = Modifier.fillMaxSize(),
     ) {
         // Storage summary card
-        item {
+        item(contentType = "summary") {
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
@@ -1373,7 +1389,7 @@ private fun DownloadedSongsList(
 
         // Active ongoing downloads
         if (activeDownloads.isNotEmpty()) {
-            item {
+            item(contentType = "active_header") {
                 Text(
                     "Downloading Now (${activeDownloads.size})",
                     style = MaterialTheme.typography.titleSmall,
@@ -1383,7 +1399,7 @@ private fun DownloadedSongsList(
                 )
             }
 
-            items(activeDownloads, key = { it.key }) { download ->
+            items(activeDownloads, key = { it.key }, contentType = { "active_download" }) { download ->
                 ActiveDownloadCard(
                     download = download,
                     onCancel = { onCancelDownload(download.key) },
@@ -1393,7 +1409,7 @@ private fun DownloadedSongsList(
 
         // Action header (Play All / Shuffle)
         if (tracks.isNotEmpty()) {
-            item {
+            item(contentType = "songs_header") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1444,6 +1460,7 @@ private fun DownloadedSongsList(
             itemsIndexed(
                 items = tracks,
                 key = { _, item -> item.id },
+                contentType = { _, _ -> "track" },
             ) { index, track ->
                 val isPlayingThis = playbackState.isPlaying &&
                     playbackState.current?.title.equals(track.title, ignoreCase = true) &&
@@ -1472,7 +1489,7 @@ private fun DownloadedSongsList(
         }
 
         if (tracks.isEmpty()) {
-            item {
+            item(contentType = "empty") {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1521,7 +1538,7 @@ private fun DownloadedArtistsList(
         modifier = Modifier.fillMaxSize(),
     ) {
         if (artists.isNotEmpty()) {
-            item {
+            item(contentType = "artists_header") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1554,6 +1571,7 @@ private fun DownloadedArtistsList(
             itemsIndexed(
                 items = artists,
                 key = { _, item -> item.name },
+                contentType = { _, _ -> "artist" },
             ) { index, artist ->
                 Card(
                     shape = groupShape(groupPositionFor(index, artists.size)),
@@ -1814,7 +1832,7 @@ private fun ArtistDetailView(
     onPlayNext: (DownloadedTrackEntity) -> Unit,
     onAddToQueue: (DownloadedTrackEntity) -> Unit,
     onPlayAll: (Boolean) -> Unit,
-    onSelectArtist: (String) -> Unit = {},
+    onSelectArtist: (String) -> Unit,
     onSelectAlbum: (String) -> Unit,
     onDeleteTrack: (DownloadedTrackEntity) -> Unit,
 ) {
@@ -2238,13 +2256,13 @@ private fun DownloadedTrackCard(
     track: DownloadedTrackEntity,
     isPlaying: Boolean,
     position: GroupPosition,
-    trackNumber: Int? = null,
     onPlay: () -> Unit,
     onPlayNext: () -> Unit,
     onAddToQueue: () -> Unit,
     onSelectArtist: () -> Unit,
     onSelectAlbum: () -> Unit,
     onDelete: () -> Unit,
+    trackNumber: Int? = null,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -2424,7 +2442,7 @@ private fun DownloadedTrackCard(
                     )
                     DropdownMenuItem(
                         text = { Text("Play Next") },
-                        leadingIcon = { Icon(Icons.Filled.PlaylistAdd, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onPlayNext()
@@ -2432,7 +2450,7 @@ private fun DownloadedTrackCard(
                     )
                     DropdownMenuItem(
                         text = { Text("Add to Queue") },
-                        leadingIcon = { Icon(Icons.Filled.QueueMusic, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onAddToQueue()

@@ -125,7 +125,7 @@ fun evaluateSignalPath(i: SignalPathInput): SignalPathReport {
     // rate rather than failing gold as "unknown".
     val src = i.sourceRateHz?.takeIf { it > 0 }
         ?: i.appOutputRateHz.takeIf { it > 0 && i.usbExclusiveActive }
-    val labelBitDepth = Regex("""(?:^|[^\d])(16|24|32)\s*(?:[-_]bit)?\s*[/]""", RegexOption.IGNORE_CASE)
+    val labelBitDepth = Regex("""(?:^|\D)(16|24|32)\s*(?:[-_]bit)?\s*/""", RegexOption.IGNORE_CASE)
         .find(i.sourceLabel)?.groupValues?.getOrNull(1)?.toIntOrNull()
     val rawBitDepth = labelBitDepth ?: i.sourceBitDepth?.takeIf { it > 0 }
     val bitDepth = when {
@@ -142,15 +142,15 @@ fun evaluateSignalPath(i: SignalPathInput): SignalPathReport {
         i.sourceLabel
     }
     if (src != null) {
-        if (bitDepth != null) {
-            checks += PathCheck(
+        checks += if (bitDepth != null) {
+            PathCheck(
                 R.string.signal_label_source,
                 R.string.signal_detail_src,
                 listOf(sourceLabel, bitDepth, src),
                 passed = true,
             )
         } else {
-            checks += PathCheck(
+            PathCheck(
                 R.string.signal_label_source,
                 R.string.signal_detail_src_nobit,
                 listOf(i.sourceLabel, src),
@@ -220,14 +220,14 @@ fun evaluateSignalPath(i: SignalPathInput): SignalPathReport {
     }
 
     // 4 — Tempo/pitch (resampling by definition when != 1x).
-    if (i.speed == 1f) {
-        checks += PathCheck(
+    checks += if (i.speed == 1f) {
+        PathCheck(
             R.string.signal_label_tempo,
             R.string.signal_detail_tempo_ok,
             passed = true,
         )
     } else {
-        checks += PathCheck(
+        PathCheck(
             R.string.signal_label_tempo,
             R.string.signal_detail_tempo_active,
             listOf(i.speed.toString()),
@@ -308,15 +308,15 @@ fun evaluateSignalPath(i: SignalPathInput): SignalPathReport {
             passed = false,
         )
     } else if (app != null && plat != null) {
-        if (plat == app) {
-            checks += PathCheck(
+        checks += if (plat == app) {
+            PathCheck(
                 R.string.signal_label_mixer,
                 R.string.signal_detail_bit_perfect_unavailable,
                 listOf(plat),
                 passed = false,
             )
         } else {
-            checks += PathCheck(
+            PathCheck(
                 R.string.signal_label_mixer,
                 R.string.signal_detail_mixer_src,
                 listOf(app, plat),
@@ -472,7 +472,7 @@ class StreamHealthTracker {
         val posDelta = positionMs - lastPositionMs
         lastPositionMs = positionMs
         lastWallMs = wallMs
-        if (wallDelta < 400L || wallDelta > 3_000L) return driftPpm
+        if (wallDelta !in 400L..3_000L) return driftPpm
         if (kotlin.math.abs(posDelta - wallDelta) > 1_500L) {
             // DASH/FLAC timelines jump by seconds while audio keeps playing.
             // Re-baseline (lastPosition already moved) but keep the last PPM.
@@ -505,7 +505,7 @@ class StreamHealthTracker {
             exclusiveOriginFrames = -1L
             return driftPpm
         }
-        if (exclusiveOriginFrames < 0L || framesWritten < exclusiveOriginFrames) {
+        if (exclusiveOriginFrames !in 0L..framesWritten) {
             exclusiveOriginFrames = framesWritten
             exclusiveOriginWallMs = wallMs
             return driftPpm

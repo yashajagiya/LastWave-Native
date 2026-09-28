@@ -11,7 +11,6 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.resume
-import kotlin.jvm.functions.Function1
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -187,14 +186,15 @@ class InnerTubeXStreamExtractor @Inject constructor(
                 Class.forName(className).methods.firstOrNull {
                     it.name == "HttpClient" && Modifier.isStatic(it.modifiers) &&
                         (it.parameterCount == 0 ||
-                            (it.parameterCount == 1 && Function1::class.java.isAssignableFrom(it.parameterTypes[0])))
+                            (it.parameterCount == 1 && Class.forName("kotlin.jvm.functions.Function1").isAssignableFrom(it.parameterTypes[0])))
                 }
             }.getOrNull() ?: continue
-            return if (method.parameterCount == 0) {
+            val result = if (method.parameterCount == 0) {
                 method.invoke(null)
             } else {
                 method.invoke(null, { _: Any? -> Unit })
             }
+            return checkNotNull(result) { "Ktor HttpClient creation returned null" }
         }
         error("Ktor JVM HttpClient factory was not found")
     }
@@ -225,14 +225,15 @@ class InnerTubeXStreamExtractor @Inject constructor(
         val companion = runCatching {
             Class.forName(className).getField("Companion").get(null)
         }.recoverCatching {
-            val companionClass = Class.forName("$className\$Companion")
+            val companionClass = Class.forName($$"$$className$Companion")
             val field = companionClass.declaredFields.firstOrNull {
-                it.name == "INSTANCE" || it.name == "\$\$INSTANCE" || it.name == "Companion"
+                it.name == "INSTANCE" || it.name == $$$"$$INSTANCE" || it.name == "Companion"
             } ?: companionClass.getField("INSTANCE")
             field.isAccessible = true
             field.get(null)
         }.getOrThrow()
-        return companion.javaClass.getMethod(methodName).invoke(companion)
+        val result = companion.javaClass.getMethod(methodName).invoke(companion)
+        return checkNotNull(result) { "Companion method $methodName returned null" }
     }
 
     private fun constructWithDefaults(

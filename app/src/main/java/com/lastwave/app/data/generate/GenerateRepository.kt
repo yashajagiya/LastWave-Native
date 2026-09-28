@@ -18,7 +18,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -33,6 +32,7 @@ import kotlinx.serialization.json.jsonObject
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "GenerateRepository"
 private const val GENERATE_REQUEST_TIMEOUT_MS = 20_000L
@@ -98,7 +98,7 @@ class GenerateRepository @Inject constructor(
         }
         val deferred = inFlightRequests.computeIfAbsent(requestKey) {
             requestScope.async {
-                val response = withTimeout(GENERATE_REQUEST_TIMEOUT_MS) {
+                val response = withTimeout(GENERATE_REQUEST_TIMEOUT_MS.milliseconds) {
                     lastFmRequestGate.withPermit { api.get(requestParams) }
                 }
                 val body = response.body()?.string()
@@ -153,7 +153,7 @@ class GenerateRepository @Inject constructor(
 
     /** Instant non-blocking pass-through matching web app.js generation speed.
      *  Audio resolution is performed on-demand when playing tracks. */
-    suspend fun filterPlayable(tracks: List<GeneratedTrack>): List<GeneratedTrack> = tracks
+     fun filterPlayable(tracks: List<GeneratedTrack>): List<GeneratedTrack> = tracks
 
     private fun YouTubeMusicTrack.toGeneratedTrack() = GeneratedTrack(
         name = title,
@@ -203,8 +203,7 @@ class GenerateRepository @Inject constructor(
      *  and signed-out states never touch Last.fm — they stay local-first. */
     private suspend fun isLastFmAvailable(): Boolean {
         val session = sessionPreferences.session.first()
-        if (session.username.isBlank() || session.username.equals("Guest User", ignoreCase = true)) return false
-        return true
+        return !(session.username.isBlank() || session.username.equals("Guest User", ignoreCase = true))
     }
 
     /**
@@ -286,7 +285,7 @@ class GenerateRepository @Inject constructor(
             }
         }
         val radio = jobs.awaitAll().flatten()
-        var pool = deduplicate(filterRecommendationExclusions(radio)).toMutableList()
+        val pool = deduplicate(filterRecommendationExclusions(radio)).toMutableList()
         if (pool.size < target) {
             onProgress("Adding local favorites…")
             val local = localSeedPool(limit = target).filterNot { it.key in pool.mapTo(mutableSetOf()) { t -> t.key } }
@@ -401,7 +400,7 @@ class GenerateRepository @Inject constructor(
     private suspend fun fetchYouTubeDiscovery(
         seeds: List<GeneratedTrack>,
         limit: Int,
-    ): List<GeneratedTrack> = kotlinx.coroutines.coroutineScope {
+    ): List<GeneratedTrack> = coroutineScope {
         val validSeeds = seeds.filter { it.name.isNotBlank() && it.artist.isNotBlank() }
             .distinctBy { it.artist.trim().lowercase() }
             .shuffled()
@@ -429,7 +428,7 @@ class GenerateRepository @Inject constructor(
             return@coroutineScope deduplicate(filterRecommendationExclusions(local)).take(limit)
         }
         val home = innerTube.fetchHomeSongs()
-        val fallback = if (home.isNotEmpty()) home else innerTube.fetchCharts()
+        val fallback = home.ifEmpty { innerTube.fetchCharts() }
         fallback.take(limit).map { it.toGeneratedTrack() }
     }
 
@@ -571,7 +570,7 @@ class GenerateRepository @Inject constructor(
         }
         if (lastFm.isNotEmpty()) return lastFm
         val charts = innerTube.fetchCharts()
-        val fallback = if (charts.isNotEmpty()) charts else innerTube.fetchHomeSongs()
+        val fallback = charts.ifEmpty { innerTube.fetchHomeSongs() }
         return filterRecommendationExclusions(fallback.map { it.toGeneratedTrack() }).take(limit)
     }
 
@@ -587,7 +586,7 @@ class GenerateRepository @Inject constructor(
             )
             val tracks = GenerateJson.normalise(result["toptracks"]?.jsonObject?.get("track"))
             val playable = filterPlayable(shuffle(filterRecommendationExclusions(tracks))).take(limit)
-            if (playable.isNotEmpty()) playable else fetchChartTracks(limit)
+            playable.ifEmpty { fetchChartTracks(limit) }
         } catch (e: Exception) {
             fetchChartTracks(limit)
         }
@@ -606,7 +605,7 @@ class GenerateRepository @Inject constructor(
             val tracks = filterPlayable(
                 shuffle(filterRecommendationExclusions(GenerateJson.normalise(JsonArray(withoutNowPlaying)))),
             ).take(limit)
-            if (tracks.isNotEmpty()) tracks else fetchChartTracks(limit)
+            tracks.ifEmpty { fetchChartTracks(limit) }
         } catch (e: Exception) {
             fetchChartTracks(limit)
         }
@@ -963,7 +962,7 @@ class GenerateRepository @Inject constructor(
         weighted += bucketB2
 
         // Bucket C — weight 1: genre/tag discovery pad, only if still thin (Last.fm only)
-        if (lastFmAvailable && weighted.size < total * 2) {
+        if (weighted.size < total * 2) {
             try {
                 onProgress("Adding genre discoveries\u2026")
                 val td = call(mapOf("method" to "user.gettoptags", "user" to username(), "limit" to "8"))

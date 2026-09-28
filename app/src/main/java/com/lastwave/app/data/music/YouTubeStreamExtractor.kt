@@ -77,7 +77,7 @@ class YouTubeStreamExtractor @Inject constructor(
                 ?.queryParameter("expire")
                 ?.toLongOrNull()
                 ?.times(1_000L)
-                ?: now + UNKNOWN_EXPIRY_TTL_MS,
+                ?: (now + UNKNOWN_EXPIRY_TTL_MS),
         )
         result
     }

@@ -11,7 +11,7 @@ internal suspend fun Call.awaitSuccessfulBodyOrNull(): String? =
     suspendCancellableCoroutine { continuation ->
         continuation.invokeOnCancellation { cancel() }
         enqueue(object : Callback {
-            override fun onFailure(call: Call, error: IOException) {
+            override fun onFailure(call: Call, e: IOException) {
                 if (continuation.isActive) continuation.resume(null)
             }
 

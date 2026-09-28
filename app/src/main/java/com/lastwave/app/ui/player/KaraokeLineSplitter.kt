@@ -64,20 +64,20 @@ fun packBalanced(widths: List<Float>, maxWidth: Float): List<IntRange> {
         var rowWidth = 0f
         widths.forEachIndexed { index, unitWidth ->
             if (rowWidth > 0f && rowWidth + unitWidth > maxWidth) {
-                rows.add(start..index - 1)
+                rows.add(start..<index)
                 start = index
                 rowWidth = 0f
             }
             rowWidth += unitWidth
         }
-        rows.add(start..n - 1)
+        rows.add(start..<n)
         return rows
     }
     val rows = mutableListOf<IntRange>()
     var index = n
     while (index > 0) {
         val start = breaks[index]
-        rows.add(0, start..index - 1)
+        rows.add(0, start..<index)
         index = start
     }
     return rows

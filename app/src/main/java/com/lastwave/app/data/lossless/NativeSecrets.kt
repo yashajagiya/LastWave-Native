@@ -24,7 +24,7 @@ class NativeSecrets @Inject constructor(
      */
     fun signAddonRequest(url: String, method: String): Pair<String, String>? {
         val res = nativeSignAddonRequest(context, url, method)
-        if (res.isNullOrBlank() || !res.contains("|")) return null
+        if (res.isBlank() || !res.contains("|")) return null
         val parts = res.split("|", limit = 2)
         if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) return null
         return Pair(parts[0], parts[1])

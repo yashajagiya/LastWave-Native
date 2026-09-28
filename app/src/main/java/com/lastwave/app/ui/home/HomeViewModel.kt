@@ -29,6 +29,7 @@ import java.util.Calendar
 import javax.inject.Inject
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import kotlinx.coroutines.Dispatchers
 
 @Immutable
@@ -215,6 +216,7 @@ private data class RowsKey(
 )
 
 
+@Stable
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val homeRepository: HomeRepository,

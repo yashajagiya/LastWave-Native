@@ -1,4 +1,7 @@
+
 package com.lastwave.app.ui.genres
+
+import androidx.compose.ui.unit.Dp
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -21,17 +24,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lastwave.app.data.generate.GeneratedTrack
+import com.lastwave.app.playback.PlayableTrack
 import com.lastwave.app.ui.common.ArtworkImage
 import com.lastwave.app.ui.common.ExpressiveHeader
 import com.lastwave.app.ui.common.TrackContextMenuSheet
@@ -68,13 +67,15 @@ import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GenresScreen(
+    modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     onNavigateToPlaylist: () -> Unit = {},
     viewModel: GenresViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(state.navigateToPlaylist) {
+    LaunchedEffect(state.navigateToPlaylist, onNavigateToPlaylist) {
         if (state.navigateToPlaylist) {
             onNavigateToPlaylist()
             viewModel.consumeNavigateToPlaylist()
@@ -113,7 +114,7 @@ fun GenresScreen(
                         start = 16.dp,
                         end = 16.dp,
                         top = 8.dp,
-                        bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                        bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                     ),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxSize().safeHorizontalContentPadding(),
@@ -216,7 +217,7 @@ private fun GenreDetailSheet(
             last >= state.detailTracks.size - 5
         }
     }
-    LaunchedEffect(shouldLoadMore, state.detailTracks.size) {
+    LaunchedEffect(shouldLoadMore, state.detailTracks.size, onLoadMore, state.detailLoading, state.detailHasMore, state.isDiscoverMode) {
         if (shouldLoadMore && !state.detailLoading && state.detailHasMore && !state.isDiscoverMode) onLoadMore()
     }
 
@@ -256,7 +257,7 @@ private fun GenreDetailSheet(
                     GenreTrackRow(
                         track = track,
                         allTracks = state.detailTracks,
-                        genreTitle = "${genre.replaceFirstChar { it.uppercase() }}",
+                        genreTitle = genre.replaceFirstChar { it.uppercase() },
                         onMenu = { menuTrack = track },
                         modifier = Modifier.animateItem(),
                     )
@@ -299,13 +300,20 @@ private fun GenreTrackRow(
     modifier: Modifier = Modifier,
 ) {
     val musicPlayer = com.lastwave.app.ui.player.LocalMusicPlayer.current
+    val queue = remember(allTracks) {
+        allTracks.map {
+            PlayableTrack(
+                it.name,
+                it.artist,
+                album = it.album,
+                artworkUrl = it.artworkUrl
+            )
+        }
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable {
-                val queue = allTracks.map {
-                    com.lastwave.app.playback.PlayableTrack(it.name, it.artist, album = it.album, artworkUrl = it.artworkUrl)
-                }
                 val index = allTracks.indexOf(track).coerceAtLeast(0)
                 musicPlayer.playQueue(queue, startIndex = index, sourceLabel = genreTitle)
             }

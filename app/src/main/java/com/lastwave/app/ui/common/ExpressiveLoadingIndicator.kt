@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
  * lifecycle-aware and compatible with the system animation-duration scale.
  */
 @Composable
-fun ExpressiveLoadingIndicator(message: String? = null, modifier: Modifier = Modifier) {
+fun ExpressiveLoadingIndicator(modifier: Modifier = Modifier, message: String? = null) {
     val transition = rememberInfiniteTransition(label = "expressiveLoader")
     val breathe by transition.animateFloat(
         initialValue = 0.94f,
@@ -78,7 +78,11 @@ fun ExpressiveLoadingIndicator(message: String? = null, modifier: Modifier = Mod
             }
             if (!message.isNullOrBlank()) {
                 Spacer(Modifier.height(12.dp))
-                Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

@@ -283,8 +283,8 @@ class LrclibLyricsApi @Inject constructor(
         fun versionTags(rawTitle: String): Set<String> {
             val tags = mutableSetOf<String>()
             val segments = mutableListOf<String>()
-            Regex("""[\(\[](.*?)[\)\]]""").findAll(rawTitle).forEach { segments.add(it.groupValues[1]) }
-            Regex("""\s*[-–—:]\s*([^-–—:\(\[]+)\s*$""").find(rawTitle)?.let { segments.add(it.groupValues[1]) }
+            Regex("""[(\[](.*?)[)\]]""").findAll(rawTitle).forEach { segments.add(it.groupValues[1]) }
+            Regex("""\s*[-–—:]\s*([^-–—:(\[]+)\s*$""").find(rawTitle)?.let { segments.add(it.groupValues[1]) }
             for (segment in segments) {
                 val lower = " $segment ".lowercase()
                 for ((keyword, tag) in VERSION_KEYWORDS) {
@@ -317,21 +317,21 @@ class LrclibLyricsApi @Inject constructor(
             // version check can reject the wrong cut.
             var out = raw
             out = out.replace(
-                Regex("""(?i)\s*[\(\[](?:feat\.?|ft\.?|featuring|with)[^\)\]]*[\)\]]"""),
+                Regex("""(?i)\s*[(\[](?:feat\.?|ft\.?|featuring|with)[^)\]]*[)\]]"""),
                 "",
             )
             out = out.replace(Regex("""(?i)\s+(?:feat\.?|ft\.?|featuring)\s+.*$"""), "")
             out = out.replace(
-                Regex("""(?i)\s*[\(\[]\s*(?:official\s*)?(?:music\s*)?(?:video|audio|visualizer|lyrics?\s*video|lyrics?|m/?v|hd|hq|4k|full\s*song)\s*[\)\]]"""),
+                Regex("""(?i)\s*[(\[]\s*(?:official\s*)?(?:music\s*)?(?:video|audio|visualizer|lyrics?\s*video|lyrics?|m/?v|hd|hq|4k|full\s*song)\s*[)\]]"""),
                 "",
             )
-            out = out.replace(Regex("""(?i)\s*[\(\[]\s*official\s*[\)\]]"""), "")
+            out = out.replace(Regex("""(?i)\s*[(\[]\s*official\s*[)\]]"""), "")
             return out.replace(Regex("""\s+"""), " ").trim().ifBlank { raw.trim() }
         }
 
         fun cleanArtistName(raw: String): String {
             return raw
-                .replace(Regex("""(?i)\s*[\(\[](?:feat\.?|ft\.?)[^\)\]]*[\)\]]"""), "")
+                .replace(Regex("""(?i)\s*[(\[](?:feat\.?|ft\.?)[^)\]]*[)\]]"""), "")
                 .replace(Regex("""(?i)\s*(?:feat\.?|ft\.?)\s+.*$"""), "")
                 .trim()
         }

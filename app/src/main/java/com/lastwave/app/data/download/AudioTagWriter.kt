@@ -393,7 +393,28 @@ class AudioTagWriter @Inject constructor(
             comments += "YEAR=$year"
         }
 
-        data class OutBlock(val type: Int, val fromSource: FlacBlockRef?, val generated: ByteArray?)
+        data class OutBlock(val type: Int, val fromSource: FlacBlockRef?, val generated: ByteArray?) {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as OutBlock
+
+                if (type != other.type) return false
+                if (fromSource != other.fromSource) return false
+                if (!generated.contentEquals(other.generated)) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = type
+                result = 31 * result + (fromSource?.hashCode() ?: 0)
+                result = 31 * result + (generated?.contentHashCode() ?: 0)
+                return result
+            }
+        }
+
         val outChain = mutableListOf<OutBlock>()
         outChain.add(OutBlock(0, streamInfo, null))
         outChain.add(OutBlock(FLAC_TYPE_VORBIS_COMMENT, null, buildVorbisCommentBody(comments)))
@@ -527,7 +548,39 @@ class AudioTagWriter @Inject constructor(
         val dataStart: Long,
         val dataLength: Int,
         val totalLength: Int,
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as OggPageRef
+
+            if (offset != other.offset) return false
+            if (headerType != other.headerType) return false
+            if (granulePosition != other.granulePosition) return false
+            if (serialNumber != other.serialNumber) return false
+            if (sequenceNumber != other.sequenceNumber) return false
+            if (dataStart != other.dataStart) return false
+            if (dataLength != other.dataLength) return false
+            if (totalLength != other.totalLength) return false
+            if (!lacing.contentEquals(other.lacing)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = offset.hashCode()
+            result = 31 * result + headerType
+            result = 31 * result + granulePosition.hashCode()
+            result = 31 * result + serialNumber
+            result = 31 * result + sequenceNumber
+            result = 31 * result + dataStart.hashCode()
+            result = 31 * result + dataLength
+            result = 31 * result + totalLength
+            result = 31 * result + lacing.contentHashCode()
+            return result
+        }
+    }
 
     private data class OpusTagsLocation(
         val startPage: Int,
@@ -536,7 +589,33 @@ class AudioTagWriter @Inject constructor(
         val serialNumber: Int,
         val sequenceNumber: Int,
         val packet: ByteArray,
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as OpusTagsLocation
+
+            if (startPage != other.startPage) return false
+            if (endPage != other.endPage) return false
+            if (endSegment != other.endSegment) return false
+            if (serialNumber != other.serialNumber) return false
+            if (sequenceNumber != other.sequenceNumber) return false
+            if (!packet.contentEquals(other.packet)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = startPage
+            result = 31 * result + endPage
+            result = 31 * result + endSegment
+            result = 31 * result + serialNumber
+            result = 31 * result + sequenceNumber
+            result = 31 * result + packet.contentHashCode()
+            return result
+        }
+    }
 
     /** Replaces the OpusTags packet with native Vorbis comments and a
      * METADATA_BLOCK_PICTURE comment. Audio packets are copied byte-for-byte;

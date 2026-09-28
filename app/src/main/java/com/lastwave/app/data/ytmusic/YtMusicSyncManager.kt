@@ -9,6 +9,7 @@ import com.lastwave.app.data.playlist.SavedPlaylist
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -24,6 +25,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface YtSyncState {
     /** Connected + enabled, waiting for the next change/interval. */
@@ -77,6 +79,7 @@ class YtMusicSyncManager @Inject constructor(
     @Volatile private var started = false
     @Volatile private var sessionExpired = false
 
+    @OptIn(FlowPreview::class)
     fun start() {
         if (started) return
         started = true
@@ -85,12 +88,12 @@ class YtMusicSyncManager @Inject constructor(
         // operations (imports, restores) produce ONE sync pass, not hundreds.
         applicationScope.launch {
             playlistRepository.changes
-                .debounce(DEBOUNCE_MS)
+                .debounce(DEBOUNCE_MS.milliseconds)
                 .collect { runCatching { syncNow("change") } }
         }
 
         applicationScope.launch {
-            delay(INITIAL_DELAY_MS)
+            delay(INITIAL_DELAY_MS.milliseconds)
             runCatching { syncNow("startup") }
         }
 
@@ -98,7 +101,7 @@ class YtMusicSyncManager @Inject constructor(
         // repairs drift made directly in YT Music's own apps.
         applicationScope.launch {
             while (true) {
-                delay(PERIODIC_INTERVAL_MS)
+                delay(PERIODIC_INTERVAL_MS.milliseconds)
                 runCatching { syncNow("periodic") }
             }
         }
@@ -159,7 +162,7 @@ class YtMusicSyncManager @Inject constructor(
                 val removedMapping = mappings.remove(orphanId)
                 val remoteId = removedMapping?.remotePlaylistId
                 removedAnyMapping = true
-                if (remoteId != null && removedMapping?.deleteRemoteWithLocal == true) {
+                if (remoteId != null && removedMapping.deleteRemoteWithLocal) {
                     runCatching { innerTube.deleteRemotePlaylist(remoteId) }
                         .onFailure { Log.w(TAG, "Orphan remote delete failed ($remoteId)", it) }
                 }
@@ -185,7 +188,7 @@ class YtMusicSyncManager @Inject constructor(
                         authFailure = true
                     }
                 }
-                delay(WRITE_PACE_MS)
+                delay(WRITE_PACE_MS.milliseconds)
             }
 
             if (authFailure) {
@@ -254,7 +257,7 @@ class YtMusicSyncManager @Inject constructor(
             allMappings[playlist.id] = mapping
             preferences.setMappings(allMappings)
             mutatedRemote = true
-        } else if (remoteId != null && mapping?.remoteTitle != playlist.title && playlist.title.isNotBlank()) {
+        } else if (mapping?.remoteTitle != playlist.title && playlist.title.isNotBlank()) {
             innerTube.renameRemotePlaylist(remoteId, playlist.title)
             mapping = (mapping ?: YtPlaylistMapping(remoteId, "")).copy(remoteTitle = playlist.title)
             allMappings[playlist.id] = mapping

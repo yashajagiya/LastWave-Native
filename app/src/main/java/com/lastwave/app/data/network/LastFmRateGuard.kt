@@ -4,6 +4,7 @@ import android.os.SystemClock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Singleton
 class LastFmRateGuard @Inject constructor() {
@@ -37,7 +38,7 @@ class LastFmRateGuard @Inject constructor() {
     suspend fun suspendAwaitClearance(maxWaitMs: Long): Boolean {
         val remaining = cooldownRemainingMs
         if (remaining > 0) {
-            delay(minOf(remaining, maxWaitMs))
+            delay(minOf(remaining, maxWaitMs).milliseconds)
         }
         return true
     }

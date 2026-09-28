@@ -21,7 +21,7 @@
 #include <cstring>
 #include <new>
 #include <unistd.h>
-#include <time.h>
+#include <ctime>
 #include <sys/ioctl.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/ch9.h>

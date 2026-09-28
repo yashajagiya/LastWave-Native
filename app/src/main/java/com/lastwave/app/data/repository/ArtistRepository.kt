@@ -2,7 +2,6 @@ package com.lastwave.app.data.repository
 
 import com.lastwave.app.data.local.SessionPreferences
 import com.lastwave.app.data.artwork.ArtworkNormalizer
-import com.lastwave.app.data.model.ArtistAlbumItem
 import com.lastwave.app.data.model.ArtistPageData
 import com.lastwave.app.data.model.ArtistSummaryItem
 import com.lastwave.app.data.music.InnerTubeMusicApi
@@ -20,6 +19,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 @Singleton
 class ArtistRepository @Inject constructor(
@@ -40,7 +40,7 @@ class ArtistRepository @Inject constructor(
         // The whole resolve + load runs under one timeout so a stalled
         // lookup can never leave the screen on its spinner forever — a
         // timeout surfaces as an error with Retry instead.
-        val loaded = kotlinx.coroutines.withTimeoutOrNull(25_000L) {
+        val loaded = kotlinx.coroutines.withTimeoutOrNull(25_000L.milliseconds) {
             var targetBrowseId = browseId?.takeIf { it.startsWith("UC") }
             var searchArtwork: String? = null
 

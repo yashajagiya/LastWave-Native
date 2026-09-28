@@ -58,9 +58,12 @@ class BiniLyricsApi @Inject constructor(
         if (!isrc.isNullOrBlank()) {
             // ISRC names the recording exactly: take it, preferring a
             // word-timed file when the catalogue holds several.
-            return@withContext query(listOf("isrc" to isrc.trim()))
-                .sortedByDescending { it.timingType.equals("word", ignoreCase = true) }
-                .firstOrNull()
+            return@withContext query(listOf("isrc" to isrc.trim())).maxByOrNull {
+                it.timingType.equals(
+                    "word",
+                    ignoreCase = true
+                )
+            }
         }
         if (title.isBlank()) return@withContext null
         val shaped = buildList {

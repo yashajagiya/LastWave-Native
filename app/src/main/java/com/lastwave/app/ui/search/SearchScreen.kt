@@ -102,9 +102,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
-
+import androidx.compose.ui.unit.Dp
 
 
 private val SearchHeaderShape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
@@ -122,11 +121,13 @@ private val EXPLORE_GENRES = listOf(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
+    modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
     onOpenArtist: (name: String, browseId: String?) -> Unit = { _, _ -> },
     onOpenAlbum: (title: String, artist: String, browseId: String?) -> Unit = { _, _, _ -> },
     onOpenPlaylist: (playlistId: String) -> Unit = {},
-    viewModel: SearchViewModel = hiltViewModel(),
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
+    viewModel: SearchViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val musicPlayer = com.lastwave.app.ui.player.LocalMusicPlayer.current
@@ -138,7 +139,7 @@ fun SearchScreen(
     val focusManager = LocalFocusManager.current
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(
@@ -267,7 +268,7 @@ fun SearchScreen(
                     LazyColumn(
                         contentPadding = PaddingValues(
                             top = 8.dp,
-                            bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                            bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                         ),
                         modifier = Modifier.fillMaxSize(),
                     ) {
@@ -306,12 +307,12 @@ fun SearchScreen(
                     LazyColumn(
                         contentPadding = PaddingValues(
                             top = 12.dp,
-                            bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                            bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                         ),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         if (state.recentSearches.isNotEmpty()) {
-                            item(key = "history_header") {
+                            item(key = "history_header", contentType = "contentType1") {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -326,7 +327,10 @@ fun SearchScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     TextButton(onClick = viewModel::clearRecentSearches) {
-                                        Text("Clear all", style = MaterialTheme.typography.labelMedium)
+                                        Text(
+                                            "Clear all",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
                                     }
                                 }
                             }
@@ -425,7 +429,7 @@ fun SearchScreen(
                                 LazyColumn(
                                     contentPadding = PaddingValues(
                                         top = 8.dp,
-                                        bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                                        bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                                     ),
                                 ) {
                                     if (topResult != null && state.tab != SearchTab.USERS) {
@@ -558,20 +562,17 @@ private fun TopResultCard(
             containerColor = containerColor,
             contentColor = cardContentColor,
         ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .combinedClickable(
-                onClick = onPlay,
-                onLongClick = onLongClick?.let { action ->
-                    {
-                        haptics.performHapticFeedback(
-                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress,
-                        )
-                        action()
-                    }
-                },
-            ),
+        modifier = Modifier.fillMaxWidth().combinedClickable(
+            onClick = onPlay,
+            onLongClick = onLongClick?.let { action ->
+                {
+                    haptics.performHapticFeedback(
+                        androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress,
+                    )
+                    action()
+                }
+            },
+        ).padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
         Row(
             modifier = Modifier
@@ -858,12 +859,20 @@ private fun SearchResultRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            val subtitle = when (tab) {
-                SearchTab.TRACKS -> listOfNotNull(item.artist, item.subtitle).joinToString(" \u00b7 ")
-                SearchTab.ALBUMS -> item.subtitle ?: item.artist.orEmpty()
-                SearchTab.PLAYLISTS -> item.subtitle.orEmpty()
-                SearchTab.ARTISTS -> item.subtitle.orEmpty()
-                SearchTab.USERS -> listOfNotNull(item.artist, item.listeners?.let { "$it scrobbles" }).joinToString(" \u00b7 ")
+            val subtitle = remember(tab, item) {
+                when (tab) {
+                    SearchTab.TRACKS -> listOfNotNull(
+                        item.artist,
+                        item.subtitle
+                    ).joinToString(" \u00b7 ")
+
+                    SearchTab.ALBUMS -> item.subtitle ?: item.artist.orEmpty()
+                    SearchTab.PLAYLISTS -> item.subtitle.orEmpty()
+                    SearchTab.ARTISTS -> item.subtitle.orEmpty()
+                    SearchTab.USERS -> listOfNotNull(
+                        item.artist,
+                        item.listeners?.let { "$it scrobbles" }).joinToString(" \u00b7 ")
+                }
             }
             if (subtitle.isNotBlank()) {
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)

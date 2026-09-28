@@ -3,6 +3,7 @@ package com.lastwave.app.ui.settings
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lastwave.app.data.backup.BackupFile
 import com.lastwave.app.data.backup.BackupRepository
 import com.lastwave.app.data.backup.RestoreResult
 import com.lastwave.app.data.generate.GenerateRepository
@@ -31,15 +32,17 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class PendingRestoreKind { FULL_BACKUP, PLAYLIST_MIRROR }
 
@@ -102,6 +105,8 @@ class SettingsViewModel @Inject constructor(
     val appUpdateManager: com.lastwave.app.data.update.AppUpdateManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     val authState: StateFlow<com.lastwave.app.data.model.AuthState> = authRepository.authState
     val updateInfo = appUpdateManager.updateInfo
@@ -607,7 +612,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun handleCsvPicked(uri: android.net.Uri) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 // Extract filename
                 val cursor = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
@@ -639,8 +644,7 @@ class SettingsViewModel @Inject constructor(
     fun stagePendingRestore(content: String, uri: android.net.Uri) {
         launchSettingsAction("stage the restore") {
             val backup = try {
-                kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                    .decodeFromString(com.lastwave.app.data.backup.BackupFile.serializer(), content)
+                json.decodeFromString(BackupFile.serializer(), content)
                     .takeIf { it.type == "lastwave-backup" }
             } catch (e: Exception) { null }
             val mirrorCount = playlistRepository.publicMirrorPlaylistCount(content)
@@ -687,7 +691,7 @@ class SettingsViewModel @Inject constructor(
                                 toastMessage = "Synced $count playlist(s) from local JSON",
                             )
                         }
-                        kotlinx.coroutines.delay(900)
+                        delay(900.milliseconds)
                         onComplete()
                     }
                     .onFailure { error ->
@@ -711,7 +715,7 @@ class SettingsViewModel @Inject constructor(
                             toastMessage = "Restored ${result.playlistCount} playlist(s)$exclusionNote",
                         )
                     }
-                    kotlinx.coroutines.delay(900)
+                    delay(900.milliseconds)
                     onComplete()
                 }
                 RestoreResult.UnsupportedSchema -> _uiState.update { it.copy(showRestoreConfirm = false, toastMessage = "This backup was made with a newer version of LastWave") }

@@ -1,12 +1,8 @@
 package com.lastwave.app.ui.shell
 
-import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -16,7 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
+import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -66,43 +62,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.boundsInParent
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
-import android.view.HapticFeedbackConstants
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.platform.LocalView
-import android.graphics.Bitmap
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.layer.GraphicsLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.core.graphics.scale
-import com.lastwave.app.ui.theme.drawInteractiveGlass
-import com.lastwave.app.ui.theme.liquidGlass
-import com.lastwave.app.ui.theme.rememberGlassInteraction
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withContext
-import java.nio.IntBuffer
-import kotlin.time.Duration.Companion.seconds
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -114,20 +85,11 @@ import com.lastwave.app.ui.home.HomeScreen
 import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
 import com.lastwave.app.ui.playlist.PlaylistScreen
 import androidx.compose.foundation.shape.CornerBasedShape
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.colorControls
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.highlight.Highlight
-import com.kyant.backdrop.shadow.Shadow
-import kotlin.math.sign
-import com.lastwave.app.ui.theme.LocalIsDarkTheme
 import com.lastwave.app.ui.theme.LocalLiquidGlass
 import com.lastwave.app.ui.theme.LiquidGlassPreset
 import com.lastwave.app.ui.theme.liquidGlassChrome
 import com.lastwave.app.ui.theme.liquidGlassContainerColor
 import com.lastwave.app.ui.theme.LayerBackdrop
-import com.lastwave.app.ui.theme.SquircleShape
 import com.lastwave.app.ui.theme.rememberLayerBackdrop
 import com.lastwave.app.ui.theme.isLiquidGlassBackdropSupported
 import com.lastwave.app.ui.theme.liquidGlassSource
@@ -172,9 +134,11 @@ object FloatingNavDefaults {
      * constant, otherwise the last row hides behind the dock/gesture bar.
      */
     @Composable
-    fun contentBottomPadding(): Dp =
+    fun contentBottomPadding(
+        miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
+    ): Dp =
         ContentBottomPadding +
-            LocalMiniPlayerScrollClearance.current +
+            miniPlayerScrollClearance +
             WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
 }
 
@@ -190,12 +154,13 @@ fun MainShell(
     onOpenDiscover: () -> Unit,
     onOpenGenres: () -> Unit,
     onOpenFriends: () -> Unit,
-    onOpenFriendProfile: (username: String, displayName: String?, avatarUrl: String?) -> Unit = { _, _, _ -> },
     onOpenFeedPlaylist: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenFriendProfile: (username: String, displayName: String?, avatarUrl: String?) -> Unit = { _, _, _ -> },
     onOpenPlaylist: (Long) -> Unit = {},
     onOpenGenerator: () -> Unit = {},
     onOpenNewReleases: () -> Unit = {},
-    mainShellViewModel: MainShellViewModel = hiltViewModel(),
+    mainShellViewModel: MainShellViewModel = hiltViewModel()
 ) {
     val tabs = MainTab.entries
     val pagerState = rememberPagerState(pageCount = { tabs.size })
@@ -224,7 +189,7 @@ fun MainShell(
     }
     val navGlass = isLiquidGlassBackdropSupported()
 
-    Box(Modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize()) {
         val feedIndex = tabs.indexOf(MainTab.FEED)
         HorizontalPager(
             state = pagerState,
@@ -519,7 +484,7 @@ private fun FloatingNavItem(
     // Surface also had animateContentSize on top of the label expand — the two
     // competing width animations clipped the pill to a rectangle and cut the
     // label mid-switch.)
-    val horizontalPadding by animateDpAsState(
+    val horizontalPaddingState = animateDpAsState(
         targetValue = if (selected) 18.dp else 12.dp,
         animationSpec = navSpring(),
         label = "navItemPadding",
@@ -535,7 +500,17 @@ private fun FloatingNavItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier
-                .padding(horizontal = horizontalPadding)
+                .layout { measurable, constraints ->
+                    val paddingPx = horizontalPaddingState.value.roundToPx()
+                    val placeable = measurable.measure(
+                        constraints.copy(
+                            maxWidth = (constraints.maxWidth - 2 * paddingPx).coerceAtLeast(0),
+                        ),
+                    )
+                    layout(placeable.width + 2 * paddingPx, placeable.height) {
+                        placeable.placeRelative(paddingPx, 0)
+                    }
+                }
                 .height(48.dp),
         ) {
             Icon(

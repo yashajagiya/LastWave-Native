@@ -26,6 +26,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "MediaScrobbleListener"
 private const val NOW_PLAYING_RETRY_DELAY_MS = 12_000L
@@ -208,7 +209,7 @@ class MediaScrobbleListenerService : NotificationListenerService() {
         pollJob?.cancel()
         pollJob = serviceScope.launch {
             while (true) {
-                delay(4_000)
+                delay(4_000.milliseconds)
                 refreshActiveSessions()
             }
         }
@@ -550,17 +551,17 @@ class MediaScrobbleListenerService : NotificationListenerService() {
         val metadata = best.controller.metadata ?: return
         val title = (metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
             ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-            ?: metadata.description?.title?.toString())?.trim().orEmpty()
+            ?: metadata.description.title?.toString())?.trim().orEmpty()
         val rawArtist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
             ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
             ?: metadata.getString(MediaMetadata.METADATA_KEY_AUTHOR)
             ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)
-            ?: metadata.description?.subtitle?.toString()
+            ?: metadata.description.subtitle?.toString()
         val sourceApp = applicationLabel(best.controller.packageName)
         val artist = rawArtist?.takeIf(String::isNotBlank)?.let(::cleanArtist) ?: sourceApp
         val album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)
             ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION)
-            ?: metadata.description?.description?.toString()
+            ?: metadata.description.description?.toString()
         if (best.widgetTrackTitle != title) {
             best.widgetTrackTitle = title
             best.widgetArtworkJob?.cancel()
@@ -569,11 +570,11 @@ class MediaScrobbleListenerService : NotificationListenerService() {
         }
         val embeddedArt = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
-            ?: metadata.description?.iconBitmap
+            ?: metadata.description.iconBitmap
         if (embeddedArt != null) best.widgetArtwork = embeddedArt
         val artUri = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
             ?: metadata.getString(MediaMetadata.METADATA_KEY_ART_URI)
-            ?: metadata.description?.iconUri?.toString()
+            ?: metadata.description.iconUri?.toString()
         if (embeddedArt == null && !artUri.isNullOrBlank() && artUri != best.widgetArtworkUri) {
             requestWidgetArtwork(best, artUri)
         }
@@ -675,7 +676,7 @@ class MediaScrobbleListenerService : NotificationListenerService() {
                 // Transient failure (rate limit / network blip): retry once
                 // after a short pause so the account's Now Playing doesn't go
                 // silently stale until the next track change.
-                delay(NOW_PLAYING_RETRY_DELAY_MS)
+                delay(NOW_PLAYING_RETRY_DELAY_MS.milliseconds)
                 if (enabled && submitNowPlaying && lastAnnouncedKey == key &&
                     sessionStillPlayingTrack(key)
                 ) {
@@ -729,7 +730,7 @@ class MediaScrobbleListenerService : NotificationListenerService() {
         debugLog.log("Scrobble threshold for \"$title\": ${thresholdMs / 1000}s of playback" + if (!hasKnownDuration) " (unknown-duration fallback)" else "")
         session.scrobbleJob = serviceScope.launch {
             while (true) {
-                delay(3_000)
+                delay(3_000.milliseconds)
                 if (!enabled || !isSelectedForScrobbling(session)) return@launch
                 if (session.trackKey != key) {
                     debugLog.log("\"$title\" changed/stopped before reaching its ${thresholdMs / 1000}s threshold — not scrobbled")

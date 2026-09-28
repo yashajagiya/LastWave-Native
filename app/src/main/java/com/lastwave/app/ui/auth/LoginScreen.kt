@@ -59,11 +59,12 @@ import com.lastwave.app.ui.theme.ExpressivePillShape
 fun LoginScreen(
     onLoginWithYouTube: () -> Unit,
     onContinueAsGuest: () -> Unit,
+    modifier: Modifier = Modifier,
     onRestoreBackupAndSignIn: ((String) -> Unit)? = null,
     onDismissError: (() -> Unit)? = null,
     errorMessage: String? = null,
     isBusy: Boolean = false,
-    onOpenDownloads: (() -> Unit)? = null,
+    onOpenDownloads: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var restoreReadError by remember { mutableStateOf<String?>(null) }
@@ -86,7 +87,7 @@ fun LoginScreen(
 
     Scaffold { padding ->
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             Column(

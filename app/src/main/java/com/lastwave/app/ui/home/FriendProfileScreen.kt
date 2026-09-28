@@ -2,13 +2,9 @@ package com.lastwave.app.ui.home
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -29,22 +25,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,7 +53,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -68,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -86,7 +80,6 @@ import com.lastwave.app.ui.common.safeDrawingBottomPadding
 import com.lastwave.app.ui.common.safeHorizontalContentPadding
 import com.lastwave.app.ui.player.LocalAddToPlaylist
 import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
-import com.lastwave.app.ui.player.LocalMusicPlayer
 import com.lastwave.app.ui.player.PlayingWaveBars
 import com.lastwave.app.ui.theme.ArtworkShape
 import com.lastwave.app.ui.theme.BadgePillShape
@@ -96,22 +89,25 @@ import com.lastwave.app.ui.theme.ListContainerShape
 import com.lastwave.app.ui.theme.NowPlayingCardShape
 import com.lastwave.app.ui.theme.StatPillShape
 import com.lastwave.app.ui.theme.TrackRowShape
+import java.util.Calendar
 
+@Suppress("UNUSED_PARAMETER")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendProfileScreen(
     username: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     initialDisplayName: String? = null,
     initialAvatarUrl: String? = null,
-    onBack: () -> Unit,
+    addToPlaylist: (PlayableTrack) -> Unit = LocalAddToPlaylist.current,
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     onOpenArtist: (String) -> Unit = {},
     onOpenAlbum: (String, String) -> Unit = { _, _ -> },
     viewModel: FriendProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val musicPlayer = LocalMusicPlayer.current
-    val addToPlaylist = LocalAddToPlaylist.current
     val listState = rememberLazyListState()
     var menuTrack by remember { mutableStateOf<HomeTrack?>(null) }
 
@@ -119,10 +115,12 @@ fun FriendProfileScreen(
         viewModel.loadFriend(username, initialDisplayName, initialAvatarUrl)
     }
 
-    val displayTitle = uiState.displayName.ifBlank { username }
+    val displayTitle = remember(uiState.displayName, username) {
+        uiState.displayName.ifBlank { username }
+    }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(
@@ -141,7 +139,7 @@ fun FriendProfileScreen(
                         onClick = viewModel::togglePinned,
                     )
                     HeaderActionIcon(
-                        icon = Icons.Filled.OpenInNew,
+                        icon = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = "Open Last.fm profile",
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.last.fm/user/$username"))
@@ -193,12 +191,12 @@ fun FriendProfileScreen(
                             start = 12.dp,
                             end = 12.dp,
                             top = 10.dp,
-                            bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                            bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                         ),
                         modifier = Modifier.fillMaxSize().safeHorizontalContentPadding(),
                     ) {
                         // 1. Hero Profile Header
-                        item(key = "friend_hero") {
+                        item(key = "friend_hero", contentType = "hero") {
                             FriendHeroCard(
                                 displayName = uiState.displayName,
                                 username = username,
@@ -209,7 +207,7 @@ fun FriendProfileScreen(
 
                         // 2. Live Now Playing Card (if actively listening)
                         uiState.nowPlaying?.let { np ->
-                            item(key = "friend_now_playing") {
+                            item(key = "friend_now_playing", contentType = "now_playing") {
                                 FriendNowPlayingBanner(
                                     track = np,
                                     onPlay = { viewModel.playTrack(np) },
@@ -220,7 +218,7 @@ fun FriendProfileScreen(
                         }
 
                         // 3. Listening Statistics Card
-                        item(key = "friend_stats") {
+                        item(key = "friend_stats", contentType = "stats") {
                             uiState.stats?.let { stats ->
                                 Column {
                                     if (stats.timerBaseSeconds > 0) {
@@ -254,14 +252,13 @@ fun FriendProfileScreen(
                                         trackCount = stats.trackCount,
                                         artistCount = stats.artistCount,
                                         albumCount = stats.albumCount,
-                                        timerBaseSeconds = stats.timerBaseSeconds,
                                     )
                                 }
                             }
                         }
 
                         // 4. Tab Selector
-                        item(key = "friend_tabs") {
+                        item(key = "friend_tabs", contentType = "tabs") {
                             FriendTabSelector(
                                 selectedTab = uiState.selectedTab,
                                 onTabSelect = viewModel::setTab,
@@ -270,7 +267,7 @@ fun FriendProfileScreen(
 
                         // 5. If Top Tracks tab, show Period Filter Chips
                         if (uiState.selectedTab == FriendProfileTab.TOP_TRACKS) {
-                            item(key = "top_tracks_periods") {
+                            item(key = "top_tracks_periods", contentType = "periods") {
                                 PeriodFilterChips(
                                     selectedPeriod = uiState.selectedPeriod,
                                     onPeriodSelect = viewModel::setPeriod,
@@ -282,13 +279,14 @@ fun FriendProfileScreen(
                         when (uiState.selectedTab) {
                             FriendProfileTab.RECENT -> {
                                 if (uiState.recentTracks.isEmpty()) {
-                                    item(key = "empty_recents") {
+                                    item(key = "empty_recents", contentType = "empty_state") {
                                         EmptyStateText("No recent scrobbles found for this friend.")
                                     }
                                 } else {
                                     itemsIndexed(
                                         uiState.recentTracks,
                                         key = { index, track -> "recent_${track.key}_${track.timestampMillis ?: index}" },
+                                        contentType = { _, _ -> "track_row" },
                                     ) { index, track ->
                                         FriendTrackRow(
                                             track = track,
@@ -316,13 +314,14 @@ fun FriendProfileScreen(
                                     else -> uiState.topTracksOverall
                                 }
                                 if (tracks.isEmpty()) {
-                                    item(key = "empty_top_tracks") {
+                                    item(key = "empty_top_tracks", contentType = "empty_state") {
                                         EmptyStateText("No top tracks available for this period.")
                                     }
                                 } else {
                                     itemsIndexed(
                                         tracks,
                                         key = { index, track -> "top_${uiState.selectedPeriod}_${track.key}_$index" },
+                                        contentType = { _, _ -> "track_row" },
                                     ) { index, track ->
                                         FriendTrackRow(
                                             track = track,
@@ -346,13 +345,14 @@ fun FriendProfileScreen(
 
                             FriendProfileTab.TOP_ARTISTS -> {
                                 if (uiState.topArtists.isEmpty()) {
-                                    item(key = "empty_top_artists") {
+                                    item(key = "empty_top_artists", contentType = "empty_state") {
                                         EmptyStateText("No top artists available for this friend.")
                                     }
                                 } else {
                                     itemsIndexed(
                                         uiState.topArtists,
                                         key = { index, artist -> "artist_${artist.name}_$index" },
+                                        contentType = { _, _ -> "artist_row" },
                                     ) { index, artist ->
                                         FriendArtistRow(
                                             artist = artist,
@@ -637,7 +637,6 @@ private fun FriendStatsCard(
     trackCount: Long,
     artistCount: Long,
     albumCount: Long,
-    timerBaseSeconds: Long,
 ) {
     Surface(
         shape = ExpressiveHeroShape,
@@ -785,10 +784,10 @@ private fun PeriodFilterChips(
 private fun FriendTrackRow(
     track: HomeTrack,
     badge: String?,
-    rank: Int? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onMenuClick: () -> Unit,
+    rank: Int? = null
 ) {
     Surface(
         shape = TrackRowShape,
@@ -1015,9 +1014,9 @@ private fun formatRelativeTime(millis: Long?): String {
         days == 1L -> "Yesterday"
         days < 7 -> "${days}d ago"
         else -> {
-            val cal = java.util.Calendar.getInstance().apply { timeInMillis = millis }
+            val cal = Calendar.getInstance().apply { timeInMillis = millis }
             val months = arrayOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-            "${cal.get(java.util.Calendar.DAY_OF_MONTH)} ${months[cal.get(java.util.Calendar.MONTH)]}"
+            "${cal.get(Calendar.DAY_OF_MONTH)} ${months[cal.get(Calendar.MONTH)]}"
         }
     }
 }

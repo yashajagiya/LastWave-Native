@@ -1,8 +1,5 @@
 package com.lastwave.app.ui.settings
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -22,22 +18,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,13 +50,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lastwave.app.data.music.InnerTubeMusicApi
-import com.lastwave.app.data.music.YouTubeMusicTrack
 import com.lastwave.app.data.music.YouTubePlaylistResult
 import com.lastwave.app.data.playlist.PlaylistImportManager
 import com.lastwave.app.data.playlist.SavedPlaylist
@@ -80,9 +71,9 @@ fun YouTubeImportSheet(
     onDismiss: () -> Unit,
     innerTube: InnerTubeMusicApi,
     importManager: PlaylistImportManager,
-    onImportSuccess: (SavedPlaylist) -> Unit,
+    onImportSuccess: (SavedPlaylist) -> Unit, modifier: Modifier = Modifier,
 ) {
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -93,6 +84,10 @@ fun YouTubeImportSheet(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var loadedPlaylist by remember { mutableStateOf<YouTubePlaylistResult?>(null) }
     var selectedVideoIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    val selectedTracks = remember(loadedPlaylist, selectedVideoIds) {
+        loadedPlaylist?.tracks?.filter { it.videoId in selectedVideoIds }.orEmpty()
+    }
 
     fun fetchPlaylist() {
         if (urlInput.isBlank()) return
@@ -117,13 +112,12 @@ fun YouTubeImportSheet(
 
     fun startImport() {
         val pl = loadedPlaylist ?: return
-        val selected = pl.tracks.filter { it.videoId in selectedVideoIds }
-        if (selected.isEmpty()) return
+        if (selectedTracks.isEmpty()) return
 
         isImporting = true
         scope.launch {
             try {
-                val saved = importManager.importYouTubePlaylist(pl, selected)
+                val saved = importManager.importYouTubePlaylist(pl, selectedTracks)
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onImportSuccess(saved)
                 onDismiss()
@@ -143,7 +137,7 @@ fun YouTubeImportSheet(
             Surface(
                 shape = RoundedCornerShape(50),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                modifier = Modifier
+                modifier = modifier
                     .padding(top = 12.dp, bottom = 8.dp)
                     .size(width = 36.dp, height = 4.dp),
             ) {}
@@ -168,7 +162,7 @@ fun YouTubeImportSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        Icons.Filled.QueueMusic,
+                        Icons.AutoMirrored.Filled.QueueMusic,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(20.dp),
@@ -211,10 +205,13 @@ fun YouTubeImportSheet(
                             }
                         } else {
                             IconButton(onClick = {
-                                val text = clipboard.getText()?.text.orEmpty()
-                                if (text.isNotBlank()) {
-                                    urlInput = text
-                                    fetchPlaylist()
+                                scope.launch {
+                                    val clipEntry = clipboard.getClipEntry()
+                                    val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString().orEmpty()
+                                    if (text.isNotBlank()) {
+                                        urlInput = text
+                                        fetchPlaylist()
+                                    }
                                 }
                             }) {
                                 Icon(Icons.Filled.ContentPaste, contentDescription = "Paste from clipboard")

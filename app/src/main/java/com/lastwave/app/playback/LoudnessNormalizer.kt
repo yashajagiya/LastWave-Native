@@ -1,7 +1,9 @@
 package com.lastwave.app.playback
 
+import androidx.annotation.OptIn
 import androidx.media3.common.Format
-import androidx.media3.extractor.metadata.flac.VorbisComment
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import kotlin.math.log10
 import kotlin.math.pow
@@ -60,6 +62,8 @@ data class ReplayGainTags(
  * no resampling. With no tags, or when [LoudnessMode.OFF] is selected, the
  * correction is exactly 0 dB so the signal passes through unchanged.
  */
+@OptIn(UnstableApi::class)
+@Suppress("DEPRECATION")
 object LoudnessNormalizer {
 
     /**
@@ -130,7 +134,7 @@ object LoudnessNormalizer {
         if (metadata.length() == 0) return ReplayGainTags()
         val tags = HashMap<String, String>()
         for (index in 0 until metadata.length()) {
-            when (val entry = metadata.get(index)) {
+            when (val entry = metadata[index]) {
                 is VorbisComment -> {
                     val key = entry.key.trim()
                     if (key.isNotEmpty() && !tags.containsKey(key)) {
@@ -139,7 +143,7 @@ object LoudnessNormalizer {
                 }
                 is TextInformationFrame -> {
                     val key = if (entry.id == "TXXX") entry.description.orEmpty() else entry.id
-                    val value = entry.value?.ifBlank { entry.values.firstOrNull().orEmpty() }.orEmpty()
+                    val value = entry.values.firstOrNull().orEmpty()
                     if (key.isNotBlank() && value.isNotBlank() && !tags.containsKey(key)) {
                         tags[key] = value
                     }

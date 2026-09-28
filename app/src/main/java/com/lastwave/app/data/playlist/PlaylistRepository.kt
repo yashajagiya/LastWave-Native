@@ -16,9 +16,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -27,11 +24,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Port of playlist.js's `lw_playlists` model: id, title, subtitle, mode,
  *  tracks, date. [id] doubles as the creation timestamp (matches the
@@ -100,12 +97,12 @@ class PlaylistRepository @Inject constructor(
 
     private suspend fun awaitStartupSync() {
         if (startupSyncTimedOut) return
-        if (withTimeoutOrNull(STARTUP_SYNC_WAIT_MS) { startupSync.await() } == null) {
+        if (withTimeoutOrNull(STARTUP_SYNC_WAIT_MS.milliseconds) { startupSync.await() } == null) {
             startupSyncTimedOut = true
         }
     }
 
-    private suspend fun filterPlayable(tracks: List<GeneratedTrack>): List<GeneratedTrack> = tracks
+    private fun filterPlayable(tracks: List<GeneratedTrack>): List<GeneratedTrack> = tracks
 
 
     /** Newest first — matches _plRenderSaved()'s display order (the

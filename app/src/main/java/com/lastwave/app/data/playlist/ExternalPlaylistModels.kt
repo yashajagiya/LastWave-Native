@@ -55,9 +55,9 @@ data class ExternalImportResult(
  */
 object ExternalPlaylistLink {
 
-    private val SPOTIFY_ID = Regex("""spotify\.com/(?:[a-z]{2}(?:-[a-z]{2})?/)?playlist/([A-Za-z0-9]+)""")
+    private val SPOTIFY_ID = Regex("""spotify\.com/(?:[a-zA-Z0-9_\-]+/)*playlist/([A-Za-z0-9]+)""")
     private val SPOTIFY_URI = Regex("""spotify:playlist:([A-Za-z0-9]+)""")
-    private val APPLE_ID = Regex("""music\.apple\.com/[a-z]{2}(?:-[a-z]{2})?/playlist/(?:[^/]+/)?(pl\.[A-Za-z0-9]+)""")
+    private val APPLE_ID = Regex("""music\.apple\.com/(?:[a-zA-Z0-9_\-]+/)*playlist/(?:[^/]+/)?(pl\.[a-zA-Z0-9_\-]+)""")
 
     /** Best-effort provider detection from a pasted string. */
     fun detect(raw: String): ExternalPlaylistSource? {

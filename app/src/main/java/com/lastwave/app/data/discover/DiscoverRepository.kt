@@ -94,11 +94,13 @@ class DiscoverRepository @Inject constructor(
             addAll(frontier.take(1).map { TasteSeed(it, 58) })
             addAll(feedSeeds.take(1).map { TasteSeed(it, 48) })
         }
+            .asSequence()
             .filter { it.track.name.isNotBlank() && it.track.artist.isNotBlank() }
             .groupBy { it.track.key }
             .map { (_, seeds) -> seeds.maxBy { it.weight } }
             .sortedByDescending(TasteSeed::weight)
             .take(MAX_TRACK_SEEDS)
+            .toList()
 
         for (seed in trackSeeds) {
             jobs += async(Dispatchers.IO) {
@@ -300,7 +302,7 @@ class DiscoverRepository @Inject constructor(
             }
         }
         if (batch.isNotEmpty()) {
-            _feed.value = _feed.value + batch
+            _feed.value += batch
         }
         batch
     }

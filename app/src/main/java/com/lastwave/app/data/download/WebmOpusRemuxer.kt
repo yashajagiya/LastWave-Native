@@ -79,7 +79,7 @@ internal object WebmOpusRemuxer {
             var sampleBuffer = ByteBuffer.allocateDirect(
                 format.integerOrNull(MediaFormat.KEY_MAX_INPUT_SIZE)
                     ?.coerceIn(4 * 1024, MAX_PACKET_BYTES)
-                    ?: 64 * 1024,
+                    ?: (64 * 1024),
             )
 
             FileOutputStream(outputOpus).buffered().use { output ->

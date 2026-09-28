@@ -2,12 +2,13 @@ package com.lastwave.app.playback
 
 import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
-import android.media.audiofx.LoudnessEnhancer
 import android.os.Build
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.media3.common.C
 import androidx.media3.common.Format
+import androidx.media3.common.util.UnstableApi
 import com.lastwave.app.data.local.EQ_BAND_FREQS_HZ
 import com.lastwave.app.data.local.EQ_MAX_GAIN_DB
 import com.lastwave.app.data.local.EqualizerPreferences
@@ -17,7 +18,6 @@ import com.lastwave.app.data.local.SettingsPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.ln
-import kotlin.math.log10
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +41,7 @@ import kotlinx.coroutines.sync.withLock
  * parsed from file metadata via [LoudnessNormalizer.parseFromMap]); when the
  * direct USB path takes over, call [setUsbExclusiveActive].
  */
+@UnstableApi
 @Singleton
 class AudioEffectsEngine @Inject constructor(
     equalizerPreferences: EqualizerPreferences,
@@ -152,7 +153,7 @@ class AudioEffectsEngine @Inject constructor(
         val isAtmos = sampleMime.contains("eac3") || sampleMime.contains("ec-3") ||
             sampleMime.contains("ac-3") || sampleMime.contains("ac3")
         val parsedTags = LoudnessNormalizer.parseFromFormat(format)
-        val finalTags = if (parsedTags == null && isAtmos) {
+        val finalTags = if (false) {
             // Dolby Atmos masters target -27 to -31 LUFS (dialogue normalization).
             // Provide +6 dB loudness compensation so Atmos tracks match stereo listening levels.
             ReplayGainTags(trackGainDb = 6.0f, trackPeak = 0.89f)
@@ -162,6 +163,7 @@ class AudioEffectsEngine @Inject constructor(
         setReplayGainTags(finalTags)
     }
 
+    @OptIn(UnstableApi::class)
     fun detach() {
         requestedSessionId = C.AUDIO_SESSION_ID_UNSET
         fallbackRequired = false

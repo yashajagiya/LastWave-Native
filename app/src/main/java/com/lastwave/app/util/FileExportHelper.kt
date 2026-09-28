@@ -419,7 +419,7 @@ object PlaylistExportFormat {
         sb.append("#PLAYLIST:$title\n")
         for (t in tracks) {
             sb.append("#EXTINF:-1,${t.artist} - ${t.name}\n")
-            sb.append(if (t.url.isNotBlank()) t.url else "").append('\n')
+            sb.append(t.url.ifBlank { "" }).append('\n')
         }
         return sb.toString()
     }

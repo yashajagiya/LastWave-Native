@@ -1,5 +1,6 @@
 package com.lastwave.app.ui.common
 
+import android.R
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -88,6 +89,7 @@ fun EdgeToEdgeDialogWindow() {
 
         val targetWindow = dialogWindow ?: activity?.window
         targetWindow?.let { w ->
+            @Suppress("DEPRECATION")
             runCatching {
                 WindowCompat.setDecorFitsSystemWindows(w, false)
                 w.navigationBarColor = android.graphics.Color.TRANSPARENT
@@ -100,7 +102,7 @@ fun EdgeToEdgeDialogWindow() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                         val lp = w.attributes
-                        lp.setBlurBehindRadius(120)
+                        lp.blurBehindRadius = 120
                         w.attributes = lp
                         runCatching { w.setBackgroundBlurRadius(120) }
                     }
@@ -114,7 +116,7 @@ fun EdgeToEdgeDialogWindow() {
             if (lp != null && view.rootView != actDecor) {
                 runCatching {
                     lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    lp.setBlurBehindRadius(120)
+                    lp.blurBehindRadius = 120
                     val wm = view.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
                     wm?.updateViewLayout(view.rootView, lp)
                 }
@@ -123,7 +125,7 @@ fun EdgeToEdgeDialogWindow() {
 
         var blurredView: View? = null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && activity != null) {
-            val bgView = activity.findViewById<View>(android.R.id.content) ?: actDecor
+            val bgView = activity.findViewById(R.id.content) ?: actDecor
             if (bgView != null && bgView != view.rootView) {
                 runCatching {
                     bgView.setRenderEffect(

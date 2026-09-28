@@ -1,13 +1,7 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-
 package com.lastwave.app.ui.player
 
-import android.content.Context
-import android.content.Intent
 import android.graphics.drawable.BitmapDrawable
-import android.net.Uri
 import android.os.SystemClock
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -56,18 +50,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -87,9 +77,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DragHandle
@@ -105,8 +94,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
@@ -149,11 +137,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -201,7 +186,6 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import androidx.media3.common.Player
-import com.lastwave.app.data.generate.GeneratedTrack
 import com.lastwave.app.data.lyrics.LyricsRepository
 import com.lastwave.app.data.lyrics.LyricsResult
 import com.lastwave.app.data.playlist.PlaylistRepository
@@ -239,18 +223,16 @@ import com.lastwave.app.ui.theme.Backdrop
 import com.lastwave.app.ui.theme.rememberLayerBackdrop
 import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.core.graphics.scale
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withContext
 import java.nio.IntBuffer
 import kotlin.time.Duration.Companion.seconds
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class FullPlayerTab {
     NOW_PLAYING,
@@ -420,7 +402,7 @@ class PlayerViewModel @Inject constructor(
             // spinner on every change: cache hits resolve in milliseconds,
             // so the indicator only appears when loading actually takes time.
             val loadingIndicator = launch {
-                delay(LOADING_SPINNER_DELAY_MS)
+                delay(LOADING_SPINNER_DELAY_MS.milliseconds)
                 _lyricsState.value = LyricsUiState.Loading
             }
             try {
@@ -485,9 +467,9 @@ class PlayerViewModel @Inject constructor(
                 // word-by-word; rows without syllables fall back to
                 // line-by-line focus on the same clock.
                 val lines = if (result.isSynced && result.lines.isNotEmpty() && !result.isInstrumental) {
-                    com.lastwave.app.ui.player.normalizeWordSpacing(
-                        com.lastwave.app.data.lyrics.LyricsRepository.mergeContinuationLines(
-                            com.lastwave.app.data.lyrics.LyricsRepository.normalizeLyricTiming(result.lines),
+                    normalizeWordSpacing(
+                        LyricsRepository.mergeContinuationLines(
+                        LyricsRepository.normalizeLyricTiming(result.lines),
                         ),
                     )
                 } else result.lines
@@ -604,6 +586,7 @@ class PlayerViewModel @Inject constructor(
 /** App-wide collapsed + maximized player layered over every navigation route. */
 @Composable
 fun PlayerHost(
+    modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
     hasBottomNavigation: Boolean = false,
     content: @Composable () -> Unit,
@@ -631,19 +614,19 @@ fun PlayerHost(
             currentTab = FullPlayerTab.NOW_PLAYING
         }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.navEvents.collect {
             expanded = false
             currentTab = FullPlayerTab.NOW_PLAYING
         }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.mixLauncher.requests.collect {
             expanded = false
             currentTab = FullPlayerTab.NOW_PLAYING
         }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.genreExplorer.pendingGenre.collect { genre ->
             if (genre != null) {
                 expanded = false
@@ -667,7 +650,7 @@ fun PlayerHost(
         LocalAddToPlaylist provides requestAddToPlaylist,
         LocalMiniPlayerScrollClearance provides if (state.current != null) 88.dp else 0.dp,
     ) {
-        Box(Modifier.fillMaxSize()) {
+        Box(modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().liquidGlassSource(if (miniGlass) miniBackdrop else null)) {
                 content()
             }
@@ -755,6 +738,7 @@ fun PlayerHost(
     }
 }
 
+@Suppress("UnstableCollections", "ViewModelForwarding")
 @Composable
 private fun ExpandedPlayer(
     viewModel: PlayerViewModel,
@@ -796,6 +780,7 @@ private fun ExpandedPlayer(
     )
 }
 
+@Suppress("UnstableCollections")
 @Composable
 private fun AddToPlaylistDialogHost(
     viewModel: PlayerViewModel,
@@ -853,7 +838,6 @@ private fun MiniPlayer(
     backdrop: Backdrop? = LocalLiquidGlassBackdrop.current,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val track = state.current ?: return
     // MiniPlayer: single glass card sampling sibling feed content.
     // Luminance loop (5x5 avg, 0.3..0.8, tween 500, 1s).
@@ -946,7 +930,7 @@ private fun MiniPlayer(
             tonalElevation = if (edgeToEdge || isGlass) 0.dp else 6.dp,
             shadowElevation = if (edgeToEdge || isGlass) 0.dp else 12.dp,
             modifier = Modifier.fillMaxWidth().then(
-                if (isGlass && backdrop != null) {
+                if (isGlass) {
                     Modifier.liquidGlass(backdrop, layer, luminance.value, shape)
                 } else Modifier
             ),
@@ -1108,13 +1092,13 @@ fun PlayingWaveBars(
     val content: @Composable () -> Unit = {
         // Fixed small badge content so it can never expand to fill the cover.
         // Outer Box is 26x22 (16+5+5, 12+5+5) — always tiny, bottom-end aligned by caller.
-        androidx.compose.foundation.layout.Box(
+        Box(
             modifier = Modifier
                 .padding(horizontal = 5.dp, vertical = 5.dp)
                 .size(16.dp, 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            androidx.compose.foundation.Canvas(
+            Canvas(
                 Modifier.fillMaxSize(),
             ) {
             if (size.width <= 0f || size.height <= 0f) return@Canvas
@@ -1130,15 +1114,18 @@ fun PlayingWaveBars(
                     1 -> second.value
                     else -> third.value
                 }
-                val barHeight = (size.height * fraction).coerceIn(minOf(barWidth, size.height), size.height)
+                val barHeight = (size.height * fraction).coerceIn(
+                    minOf(barWidth, size.height),
+                    size.height
+                )
                 drawRoundRect(
                     color = waveColor,
-                    topLeft = androidx.compose.ui.geometry.Offset(
+                    topLeft = Offset(
                         x = startX + index * (barWidth + barGap),
                         y = size.height - barHeight,
                     ),
-                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2f, barWidth / 2f),
+                    size = Size(barWidth, barHeight),
+                    cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
                 )
             }
             }
@@ -1184,7 +1171,7 @@ private fun AddToPlaylistDialog(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val trackKey = remember(track.title, track.artist) { track.toGeneratedTrack().key }
-    val selectedPlaylists = sanitizedPlaylists.filter { it.id in selectedPlaylistIds }
+    val selectedPlaylists = remember(sanitizedPlaylists, selectedPlaylistIds) { sanitizedPlaylists.filter { it.id in selectedPlaylistIds } }
     val playlistListMaxHeight = (LocalConfiguration.current.screenHeightDp.dp - 360.dp)
         .coerceIn(180.dp, 410.dp)
 
@@ -1192,7 +1179,7 @@ private fun AddToPlaylistDialog(
         selectedPlaylistIds = selectedPlaylistIds.intersect(sanitizedPlaylists.mapTo(mutableSetOf(), SavedPlaylist::id))
     }
 
-    LaunchedEffect(trackKey, sanitizedPlaylists.map(SavedPlaylist::id)) {
+    LaunchedEffect(trackKey, sanitizedPlaylists.map(SavedPlaylist::id), onFindCachedDuplicates) {
         runCatching {
             val remoteIds = sanitizedPlaylists
                 .filterTo(mutableListOf()) { it.remotePlaylistId != null }
@@ -1235,7 +1222,7 @@ private fun AddToPlaylistDialog(
     }
 
     duplicateConfirmation?.let { duplicates ->
-        val duplicatePlaylists = sanitizedPlaylists.filter { it.id in duplicates }
+        val duplicatePlaylists = remember(sanitizedPlaylists, duplicates) { sanitizedPlaylists.filter { it.id in duplicates } }
         if (duplicatePlaylists.size == 1) {
             val playlist = duplicatePlaylists.first()
             AlertDialog(
@@ -1391,7 +1378,7 @@ private fun AddToPlaylistDialog(
                     modifier = Modifier.size(52.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.PlaylistAdd, contentDescription = null, modifier = Modifier.size(27.dp))
+                        Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null, modifier = Modifier.size(27.dp))
                     }
                 }
                 Column(Modifier.weight(1f).padding(start = 14.dp)) {
@@ -1565,7 +1552,7 @@ private fun AddToPlaylistDialog(
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
                     } else {
-                        Icon(Icons.Filled.PlaylistAdd, contentDescription = null, modifier = Modifier.size(19.dp))
+                        Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null, modifier = Modifier.size(19.dp))
                     }
                     Spacer(Modifier.width(8.dp))
                     Text(
@@ -1583,6 +1570,7 @@ private fun AddToPlaylistDialog(
 
 private enum class SeekDirection { REWIND, FORWARD }
 
+@Suppress("MultipleContentEmitters")
 @Composable
 private fun FullPlayer(
     state: MusicPlayerState,
@@ -1795,7 +1783,7 @@ private fun FullPlayer(
                                         0f to ambientColor.copy(alpha = 0.58f),
                                         0.45f to ambientColor.copy(alpha = 0.22f),
                                         1f to Color.Transparent,
-                                        center = androidx.compose.ui.geometry.Offset(bgWidth * 0.25f, bgHeight * 0.20f),
+                                        center = Offset(bgWidth * 0.25f, bgHeight * 0.20f),
                                         radius = bgMaxDimension * 0.85f,
                                     )
                                 )
@@ -1808,7 +1796,7 @@ private fun FullPlayer(
                                         0f to ambientCompanion.copy(alpha = 0.52f),
                                         0.50f to ambientCompanion.copy(alpha = 0.20f),
                                         1f to Color.Transparent,
-                                        center = androidx.compose.ui.geometry.Offset(bgWidth * 0.88f, bgHeight * 0.65f),
+                                        center = Offset(bgWidth * 0.88f, bgHeight * 0.65f),
                                         radius = bgMaxDimension * 0.78f,
                                     )
                                 )
@@ -1821,7 +1809,7 @@ private fun FullPlayer(
                                         0f to ambientDeep.copy(alpha = 0.42f),
                                         0.55f to ambientDeep.copy(alpha = 0.14f),
                                         1f to Color.Transparent,
-                                        center = androidx.compose.ui.geometry.Offset(bgWidth * 0.15f, bgHeight * 0.82f),
+                                        center = Offset(bgWidth * 0.15f, bgHeight * 0.82f),
                                         radius = bgMaxDimension * 0.70f,
                                     )
                                 )
@@ -1850,7 +1838,7 @@ private fun FullPlayer(
                                 0f to Color.Transparent,
                                 0.65f to Color.Transparent,
                                 1f to Color.Black.copy(alpha = 0.30f),
-                                center = androidx.compose.ui.geometry.Offset(
+                                center = Offset(
                                     bgWidth * 0.50f,
                                     bgHeight * 0.40f,
                                 ),
@@ -1985,7 +1973,7 @@ private fun FullPlayer(
                             ),
                     ) {
                         Icon(
-                            if (currentTab != FullPlayerTab.NOW_PLAYING) Icons.Filled.ArrowBack else Icons.Filled.ExpandMore,
+                            if (currentTab != FullPlayerTab.NOW_PLAYING) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.ExpandMore,
                             if (currentTab != FullPlayerTab.NOW_PLAYING) "Back to player" else "Minimize player",
                             modifier = Modifier.size(26.dp),
                             tint = Color.White.copy(alpha = 0.94f),
@@ -2130,7 +2118,7 @@ private fun FullPlayer(
                                 Column(
                                     Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(bottom = 18.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
+                                ) playerColumn@ {
                                     val sleeveAlpha by animateFloatAsState(
                                         targetValue = if (showFullBleed) 0f else 1f,
                                         animationSpec = tween(350),
@@ -2206,7 +2194,7 @@ private fun FullPlayer(
 
                                                                         seekResetJob?.cancel()
                                                                         seekResetJob = coroutineScope.launch {
-                                                                            delay(700L)
+                                                                            delay(700.milliseconds)
                                                                             seekOverlayDirection = null
                                                                             lastTapSide = null
                                                                         }
@@ -2231,7 +2219,7 @@ private fun FullPlayer(
                                                         val dx = change.position.x - initialX
                                                         val dy = change.position.y - initialY
                                                         if (!isDrag) {
-                                                            if (kotlin.math.abs(dx) > touchSlop && kotlin.math.abs(dx) > kotlin.math.abs(dy)) {
+                                                            if (abs(dx) > touchSlop && abs(dx) > abs(dy)) {
                                                                 isDrag = true
                                                                 lastLikeTapTimestamp = 0L
                                                                 lastTapTimestamp = 0L
@@ -2312,7 +2300,7 @@ private fun FullPlayer(
                                             }
                                         }
 
-                                        androidx.compose.animation.AnimatedVisibility(
+                                        this@playerColumn.AnimatedVisibility(
                                             visible = seekOverlayDirection == SeekDirection.REWIND,
                                             enter = fadeIn(tween(100)) + scaleIn(ExpressiveMotion.spatialSpring(), initialScale = 0.88f),
                                             exit = fadeOut(tween(200)),
@@ -2357,7 +2345,7 @@ private fun FullPlayer(
                                             }
                                         }
 
-                                        androidx.compose.animation.AnimatedVisibility(
+                                        this@playerColumn.AnimatedVisibility(
                                             visible = seekOverlayDirection == SeekDirection.FORWARD,
                                             enter = fadeIn(tween(100)) + scaleIn(ExpressiveMotion.spatialSpring(), initialScale = 0.88f),
                                             exit = fadeOut(tween(200)),
@@ -3393,7 +3381,7 @@ private fun QueuePanel(state: MusicPlayerState, player: MusicPlayer, modifier: M
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            itemsIndexed(state.queue, key = { index, _ -> queueKeys.getOrNull(index) ?: index.toString() }) { index, item ->
+            itemsIndexed(state.queue, key = { index, _ -> queueKeys.getOrNull(index) ?: index.toString() }, contentType = { _, _ -> "queue_item" }) { index, item ->
                 val isCurrent = index == state.currentIndex
                 val isDragging = index == draggingIndex
                 val stableKey = queueKeys.getOrNull(index) ?: index.toString()
@@ -3570,7 +3558,7 @@ private fun QueuePanel(state: MusicPlayerState, player: MusicPlayer, modifier: M
 @Composable
 private fun PlayerArtwork(
     track: PlayableTrack,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     corner: androidx.compose.ui.unit.Dp,
     decodeSizePx: Int? = null,
     canvas: com.lastwave.app.data.canvas.CanvasArtwork? = null,

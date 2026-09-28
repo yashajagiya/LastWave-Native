@@ -35,7 +35,7 @@ import kotlin.math.roundToLong
 fun LyricsOffsetDialog(
     currentMs: Long,
     onSelect: (Long) -> Unit,
-    onDismiss: () -> Unit,
+    onDismiss: () -> Unit, modifier: Modifier = Modifier,
 ) {
     var draftMs by remember(currentMs) { mutableLongStateOf(currentMs) }
     AlertDialog(

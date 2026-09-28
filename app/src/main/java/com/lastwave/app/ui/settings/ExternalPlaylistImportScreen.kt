@@ -27,13 +27,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.MusicNote import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,13 +49,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,10 +86,13 @@ private const val PREVIEW_ROW_LIMIT = 50
 fun ExternalPlaylistImportScreen(
     onBack: () -> Unit,
     onImportSuccess: (SavedPlaylist) -> Unit,
+    modifier: Modifier = Modifier,
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     viewModel: ExternalPlaylistImportViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
 
@@ -95,7 +100,7 @@ fun ExternalPlaylistImportScreen(
     val rows = preview?.rows.orEmpty()
     val visibleRows = rows.take(PREVIEW_ROW_LIMIT)
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -113,13 +118,13 @@ fun ExternalPlaylistImportScreen(
                     start = 16.dp,
                     end = 16.dp,
                     top = 10.dp,
-                    bottom = 96.dp + LocalMiniPlayerScrollClearance.current,
+                    bottom = 96.dp + miniPlayerScrollClearance,
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 // Link input + Preview action
-                item {
+                item(contentType = "link_input") {
                     Card(
                         shape = RoundedCornerShape(22.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
@@ -155,9 +160,12 @@ fun ExternalPlaylistImportScreen(
                                         }
                                     } else {
                                         IconButton(onClick = {
-                                            val text = clipboard.getText()?.text.orEmpty()
-                                            if (text.isNotBlank()) {
-                                                viewModel.onLinkChange(text)
+                                            scope.launch {
+                                                val clipEntry = clipboard.getClipEntry()
+                                                val text = clipEntry?.clipData?.getItemAt(0)?.text?.toString().orEmpty()
+                                                if (text.isNotBlank()) {
+                                                    viewModel.onLinkChange(text)
+                                                }
                                             }
                                         }) {
                                             Icon(Icons.Filled.ContentPaste, contentDescription = "Paste", tint = MaterialTheme.colorScheme.primary)
@@ -197,7 +205,7 @@ fun ExternalPlaylistImportScreen(
                                     Spacer(Modifier.width(8.dp))
                                     Text("Reading Playlist...")
                                 } else {
-                                    Icon(Icons.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(8.dp))
                                     Text("Preview", fontWeight = FontWeight.Bold)
                                 }
@@ -285,6 +293,7 @@ fun ExternalPlaylistImportScreen(
                     itemsIndexed(
                         items = visibleRows,
                         key = { index, _ -> "ext_row_$index" },
+                        contentType = { _, _ -> "track_row" },
                     ) { index, row ->
                         ExternalTrackRowCard(
                             row = row,
@@ -336,7 +345,7 @@ fun ExternalPlaylistImportScreen(
                 .align(Alignment.BottomCenter)
                 .adaptiveContentWidth(maxWidth = 600.dp)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                .padding(bottom = 16.dp + LocalMiniPlayerScrollClearance.current)
+                .padding(bottom = 16.dp + miniPlayerScrollClearance)
                 .padding(horizontal = 20.dp),
         ) {
             Button(

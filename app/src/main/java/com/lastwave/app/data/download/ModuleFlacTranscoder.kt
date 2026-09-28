@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.milliseconds
 
 data class TranscodedFlac(
     val file: File,
@@ -66,7 +67,7 @@ class ModuleFlacTranscoder @Inject constructor(
         artworkUri: String?,
     ): TranscodedFlac? = withContext(Dispatchers.IO) {
         runCatching {
-            withTimeout(MAX_TRANSCODE_MS) {
+            withTimeout(MAX_TRANSCODE_MS.milliseconds) {
                 doTranscode(sourceFile, descriptor, title, artist, album, artworkUri)
             }
         }.getOrNull()
@@ -80,7 +81,9 @@ class ModuleFlacTranscoder @Inject constructor(
         album: String?,
         artworkUri: String?,
     ): TranscodedFlac {
-        val pcmFile = File.createTempFile("trans_pcm_", ".pcm", context.cacheDir)
+        val pcmFile = withContext(Dispatchers.IO) {
+            File.createTempFile("trans_pcm_", ".pcm", context.cacheDir)
+        }
         val sink = CapturingAudioSink(pcmFile)
         // Local-file MPD: same bytes the download verified, no network except
         // the streaming license exchange (module envelope via the callback).
@@ -140,7 +143,9 @@ class ModuleFlacTranscoder @Inject constructor(
             if (!sink.isConfigured() || sink.framesWritten <= 0) {
                 error("No PCM captured")
             }
-            val flacFile = File.createTempFile("trans_flac_", ".flac", context.cacheDir)
+            val flacFile = withContext(Dispatchers.IO) {
+                File.createTempFile("trans_flac_", ".flac", context.cacheDir)
+            }
             if (!encodePcmToFlac(pcmFile, sink.sampleRate, sink.channelCount, flacFile)) {
                 runCatching { flacFile.delete() }
                 error("FLAC encode unavailable")

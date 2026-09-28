@@ -1,6 +1,7 @@
 package com.lastwave.app.ui.newreleases
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.music.YouTubeMusicTrack
@@ -27,6 +28,7 @@ data class NewReleasesUiState(
     val endReached: Boolean = false,
 )
 
+@Stable
 @HiltViewModel
 class NewReleasesViewModel @Inject constructor(
     private val repository: NewReleasesRepository,

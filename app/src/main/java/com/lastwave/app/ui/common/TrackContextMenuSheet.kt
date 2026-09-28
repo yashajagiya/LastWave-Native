@@ -1,5 +1,7 @@
 package com.lastwave.app.ui.common
 
+import androidx.compose.runtime.Stable
+
 import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.core.Spring
@@ -7,7 +9,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.rememberScrollState
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -34,11 +36,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.QueuePlayNext
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sell
@@ -46,7 +45,6 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
@@ -83,7 +81,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.ui.generate.MixLauncher
-import com.lastwave.app.ui.theme.LocalLiquidGlass
 import com.lastwave.app.ui.theme.liquidGlassChrome
 import com.lastwave.app.playback.PlayableTrack
 import com.lastwave.app.ui.navigation.ArtistAlbumNavigator
@@ -111,6 +108,7 @@ sealed interface TrackMenuTarget {
     data class Album(val name: String, val artist: String, val url: String) : TrackMenuTarget
 }
 
+@Stable
 @HiltViewModel
 class ArtistAlbumMenuViewModel @Inject constructor(
     private val navigator: ArtistAlbumNavigator,
@@ -127,6 +125,7 @@ class ArtistAlbumMenuViewModel @Inject constructor(
 /** Thin bridge so TrackContextMenuSheet can reach the MixLauncher singleton
  *  the same way it already reaches GenreRowViewModel — every caller gets
  *  "Start Mix with this Song" working for free, with no per-screen wiring. */
+@Stable
 @HiltViewModel
 class StartMixMenuViewModel @Inject constructor(private val mixLauncher: MixLauncher) : ViewModel() {
     fun startMix(trackName: String, artistName: String, videoId: String? = null) {
@@ -140,6 +139,7 @@ enum class TrackDownloadStatus {
     DOWNLOADED,
 }
 
+@Stable
 @HiltViewModel
 class DownloadMenuViewModel @Inject constructor(
     private val downloadManager: com.lastwave.app.data.download.TrackDownloadManager,
@@ -191,6 +191,7 @@ fun downloadLabelForQuality(quality: Int): String = when (quality) {
     else -> "Download (Max Quality)"
 }
 
+@Stable
 @HiltViewModel
 class RecommendationExclusionMenuViewModel @Inject constructor(
     private val discoverRepository: com.lastwave.app.data.discover.DiscoverRepository,
@@ -206,6 +207,7 @@ class RecommendationExclusionMenuViewModel @Inject constructor(
  *  Search) gets "tap the genre to open it in Genres" for free, without
  *  each of them needing to pass onExploreGenre + a NavController down
  *  through their own screen. */
+@Stable
 @HiltViewModel
 class ExploreGenreMenuViewModel @Inject constructor(private val genreExplorer: com.lastwave.app.ui.genres.GenreExplorer) : ViewModel() {
     fun explore(genre: String) {
@@ -274,8 +276,9 @@ private fun buildLastFmUrl(target: TrackMenuTarget): String {
 fun TrackContextMenuSheet(
     target: TrackMenuTarget,
     capabilities: TrackMenuCapabilities,
-    playableTrack: PlayableTrack? = null,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    playableTrack: PlayableTrack? = null,
     playbackSourceLabel: String = "LastWave",
     onPlayInLastWave: (() -> Unit)? = null,
     onStartMix: ((trackName: String, artistName: String) -> Unit)? = null,
@@ -457,7 +460,7 @@ fun TrackContextMenuSheet(
                             )
                         }
                     }
-                    add { pos -> MenuActionRow(Icons.Filled.PlaylistAdd, "Add to playlist", position = pos) { addToPlaylist(playable); onDismiss() } }
+                    add { pos -> MenuActionRow(Icons.AutoMirrored.Filled.PlaylistAdd, "Add to playlist", position = pos) { addToPlaylist(playable); onDismiss() } }
                     val splitArtists = com.lastwave.app.util.ArtistHelper.splitArtists(t.artist)
                     for (art in splitArtists) {
                         add { pos ->
@@ -517,7 +520,7 @@ fun TrackContextMenuSheet(
                             }
                         }
                     }
-                    add { pos -> MenuActionRow(Icons.Filled.QueueMusic, "Add to queue", position = pos) { musicPlayer.addToQueue(playable); onDismiss() } }
+                    add { pos -> MenuActionRow(Icons.AutoMirrored.Filled.QueueMusic, "Add to queue", position = pos) { musicPlayer.addToQueue(playable); onDismiss() } }
                     add { pos ->
                         Card(
                             shape = groupShape(pos),

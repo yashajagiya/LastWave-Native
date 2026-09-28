@@ -18,7 +18,31 @@ data class ClarityPreset(
     val displayName: String,
     val description: String,
     val trimsDb: FloatArray,
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ClarityPreset
+
+        if (index != other.index) return false
+        if (key != other.key) return false
+        if (displayName != other.displayName) return false
+        if (description != other.description) return false
+        if (!trimsDb.contentEquals(other.trimsDb)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = index
+        result = 31 * result + key.hashCode()
+        result = 31 * result + displayName.hashCode()
+        result = 31 * result + description.hashCode()
+        result = 31 * result + trimsDb.contentHashCode()
+        return result
+    }
+}
 
 /**
  * Clarity output presets as data. Trim values mirror the native preset

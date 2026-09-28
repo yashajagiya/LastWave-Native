@@ -19,6 +19,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "WidgetUpdater"
 private const val ART_FILE_NAME = "widget_now_playing_art.png"
@@ -54,7 +55,7 @@ object WidgetUpdater {
             val app = context.applicationContext
             tickerJob = tickerScope.launch {
                 while (isActive) {
-                    delay(TICK_INTERVAL_MS)
+                    delay(TICK_INTERVAL_MS.milliseconds)
                     animationFrame = (animationFrame + 1) % 3
                     val snapshot = WidgetSnapshot.read(app)
                     if (!snapshot.hasSession || !snapshot.isPlaying) {
@@ -142,12 +143,12 @@ object WidgetUpdater {
     }
 
     /** Refreshes a freshly placed widget from persisted state. */
-    suspend fun sync(context: Context) {
+     fun sync(context: Context) {
         pushAll(context)
     }
 
     /** Re-pushes the widget (theme change is handled by day/night resources). */
-    suspend fun refreshTheme(context: Context) {
+     fun refreshTheme(context: Context) {
         pushAll(context)
     }
 

@@ -391,8 +391,7 @@ class HomeRepository @Inject constructor(
             throw LastFmException(LastFmErrors.friendlyMessage(errCode ?: 0, errMsg), errCode)
         }
         val topartists = jsonElem["topartists"]?.jsonObject
-        val artistElem = topartists?.get("artist")
-        val artistList = when (artistElem) {
+        val artistList = when (val artistElem = topartists?.get("artist")) {
             is JsonArray -> artistElem
             is JsonObject -> listOf(artistElem)
             else -> emptyList()
@@ -445,8 +444,7 @@ class HomeRepository @Inject constructor(
                 val errMsg = jsonElem["message"]?.jsonPrimitive?.contentOrNull
                 throw LastFmException(LastFmErrors.friendlyMessage(errCode ?: 0, errMsg), errCode)
             }
-            val albumElem = jsonElem["topalbums"]?.jsonObject?.get("album")
-            val albumList = when (albumElem) {
+            val albumList = when (val albumElem = jsonElem["topalbums"]?.jsonObject?.get("album")) {
                 is JsonArray -> albumElem
                 is JsonObject -> listOf(albumElem)
                 else -> emptyList()
@@ -528,7 +526,7 @@ class HomeRepository @Inject constructor(
             val resolvedStats = if (stats.scrobbles <= 0L && recent.totalScrobbles > 0L) {
                 stats.copy(scrobbles = recent.totalScrobbles)
             } else stats
-            val topTracks = topTracksResult.getOrElse { emptyList<HomeTrack>() }
+            val topTracks = topTracksResult.getOrElse { emptyList() }
 
             // Everything failed = genuinely offline → surface a retryable
             // failure. Any partial success renders what we have.

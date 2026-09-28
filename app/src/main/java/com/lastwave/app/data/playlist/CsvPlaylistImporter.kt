@@ -137,7 +137,8 @@ class CsvPlaylistImporter @Inject constructor(
 
     private fun stripSafeVideoLabel(title: String): String = title
         .replace(
-            Regex("(?i)\\s*[\\[(](official\\s*(audio|video)|music\\s*video|lyric\\s*video|audio|video|hd|hq|4k)[\\])]"),
+            Regex("(?i)\\s*[\\[(](official\\s*(audio|video)|music\\s*video|lyric\\s*video|audio|video|hd|hq|4k)[])]"),
+
             "",
         )
         .trim()
@@ -172,7 +173,7 @@ class CsvPlaylistImporter @Inject constructor(
         val titleColumn = if (titleIndex >= 0) {
             titleIndex
         } else if (hasHeader) {
-            (0 until first.size).firstOrNull { it != artistIndex && it != albumIndex && it != urlIndex } ?: 0
+            first.indices.firstOrNull { it != artistIndex && it != albumIndex && it != urlIndex } ?: 0
         } else 0
         val artistColumn = if (artistIndex >= 0) {
             artistIndex

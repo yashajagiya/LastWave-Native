@@ -53,6 +53,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.random.Random
+import androidx.compose.runtime.collectAsState
 
 @Language("AGSL")
 internal val FLUID_AGSL = """
@@ -271,7 +272,7 @@ fun FluidArtworkBackground(
     val key = remember(track.title, track.artist) { ArtworkNormalizer.cacheKey(track.title, track.artist) }
     val resolvedUrl by remember(key) {
         artworkViewModel.resolved.map { it[key] }.distinctUntilChanged()
-    }.collectAsStateWithLifecycle(initialValue = artworkViewModel.resolved.value[key])
+    }.collectAsStateWithLifecycle(initialValue = artworkViewModel.resolved.collectAsStateWithLifecycle().value[key])
     
     LaunchedEffect(key) {
         if (!isReal && resolvedUrl.isNullOrBlank()) {

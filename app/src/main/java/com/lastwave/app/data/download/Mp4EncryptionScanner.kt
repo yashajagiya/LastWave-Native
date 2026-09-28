@@ -60,7 +60,6 @@ internal object Mp4EncryptionScanner {
             if (type in CONTAINERS && size > headerSize) {
                 if (walk(raf, off + headerSize, off + size)) return true
             }
-            if (size == 0L) break
             off += size
         }
         return false

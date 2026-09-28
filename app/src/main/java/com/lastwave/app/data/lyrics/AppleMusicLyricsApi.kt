@@ -159,7 +159,11 @@ class AppleMusicLyricsApi @Inject constructor(
     ): Long? {
         if (title.isBlank()) return null
         val term = if (artist.isNotBlank()) "$title $artist" else title
-        val url = "https://itunes.apple.com/search?term=${URLEncoder.encode(term, "UTF-8")}" +
+        val url = "https://itunes.apple.com/search?term=${
+            withContext(Dispatchers.IO) {
+                URLEncoder.encode(term, "UTF-8")
+            }
+        }" +
             "&media=music&entity=song&limit=5"
         val body = try {
             val request = Request.Builder()

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
+import androidx.annotation.RequiresApi
 import com.lastwave.app.data.local.AppLanguage
 import com.lastwave.app.data.local.SettingsPreferences
 import com.lastwave.app.data.local.appLocale
@@ -98,6 +99,7 @@ class AppLocaleManager @Inject constructor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun setFrameworkLocales(tag: String?) {
         try {
             val manager = appContext.getSystemService(LocaleManager::class.java) ?: return

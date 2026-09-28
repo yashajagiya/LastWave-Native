@@ -1,5 +1,6 @@
 package com.lastwave.app.ui.navigation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,70 +13,96 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.remember
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.navArgument
+import com.lastwave.app.R
+import com.lastwave.app.data.local.SessionPreferences
 import com.lastwave.app.data.model.AuthState
+import com.lastwave.app.data.repository.AuthRepository
+import com.lastwave.app.data.ytmusic.YtMusicAuthManager
+import com.lastwave.app.ui.album.AlbumDetailScreen
+import com.lastwave.app.ui.artist.ArtistDetailScreen
 import com.lastwave.app.ui.auth.AuthViewModel
 import com.lastwave.app.ui.auth.LoginScreen
-import com.lastwave.app.ui.settings.SettingsScreen
-import com.lastwave.app.ui.search.SearchScreen
-import com.lastwave.app.ui.discover.DiscoverScreen
-import com.lastwave.app.ui.genres.GenresScreen
-import com.lastwave.app.ui.shell.MainShell
-import com.lastwave.app.ui.common.PredictiveBackScreen
+import com.lastwave.app.ui.auth.WebAuthState
 import com.lastwave.app.ui.common.ExpressiveLoadingIndicator
 import com.lastwave.app.ui.common.ExpressiveMotion
+import com.lastwave.app.ui.common.PredictiveBackScreen
+import com.lastwave.app.ui.discover.DiscoverScreen
+import com.lastwave.app.ui.feed.FeedPlaylistDetailScreen
+import com.lastwave.app.ui.generate.GenerateScreen
+import com.lastwave.app.ui.generate.MixLauncher
 import com.lastwave.app.ui.genres.GenreExplorer
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import com.lastwave.app.ui.genres.GenresScreen
+import com.lastwave.app.ui.home.FriendProfileScreen
+import com.lastwave.app.ui.home.FriendsScreen
+import com.lastwave.app.ui.home.HomeViewModel
+import com.lastwave.app.ui.newreleases.NewReleasesScreen
+import com.lastwave.app.ui.playlist.PlaylistDetailScreen
+import com.lastwave.app.ui.search.SearchScreen
+import com.lastwave.app.ui.settings.DownloadsScreen
+import com.lastwave.app.ui.settings.ExcludedSongsScreen
+import com.lastwave.app.ui.settings.ExternalPlaylistImportScreen
+import com.lastwave.app.ui.settings.HomeSectionsScreen
+import com.lastwave.app.ui.settings.ModulesScreen
+import com.lastwave.app.ui.settings.ScrobblerAppsScreen
+import com.lastwave.app.ui.settings.SettingsScreen
+import com.lastwave.app.ui.settings.YouTubeLoginScreen
+import com.lastwave.app.ui.settings.YouTubePlaylistImportScreen
+import com.lastwave.app.ui.shell.MainShell
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import javax.inject.Inject
 
-/** Thin bridge so LastWaveNavHost (a plain composable, no direct Hilt
- *  singleton access) can observe GenreExplorer's pending genre and
- *  navigate — same reasoning as MainShellViewModel's bridge to
- *  MixLauncher. */
+/** Thin bridge so LastWaveNavHost can observe GenreExplorer's pending genre and navigate. */
+@Stable
 @HiltViewModel
 class GenreExplorerNavBridge @Inject constructor(genreExplorer: GenreExplorer) : ViewModel() {
     val pendingGenre = genreExplorer.pendingGenre
 }
 
+@Stable
 @HiltViewModel
-class MixLauncherNavBridge @Inject constructor(val mixLauncher: com.lastwave.app.ui.generate.MixLauncher) : ViewModel()
+class MixLauncherNavBridge @Inject constructor(val mixLauncher: MixLauncher) : ViewModel()
 
+@Stable
 @HiltViewModel
 class ArtistAlbumNavBridge @Inject constructor(val navigator: ArtistAlbumNavigator) : ViewModel()
 
+@Stable
 @HiltViewModel
 class AppRouteNavBridge @Inject constructor(val routeNavigator: AppRouteNavigator) : ViewModel()
 
 /**
- * Splash / onboarding gate for the YouTube Music-first flow.
+ * Splash and onboarding gate for the YouTube Music flow.
  *
- * Routes to MainShell when ANY onboarding signal is present:
- *  - a Last.fm session (legacy [AuthState.SignedIn]), OR
- *  - a YouTube Music connection (cookies captured via YtMusicAuthManager), OR
- *  - a previously-selected guest mode (account-free).
- * Otherwise routes to Login, which now shows only "Login with YouTube Music"
- * and "Continue as Guest".
+ * Routes to MainShell when an onboarding signal is present.
+ * Otherwise, routes to the login screen.
  */
 @HiltViewModel
 class LaunchGateViewModel @Inject constructor(
-    authRepository: com.lastwave.app.data.repository.AuthRepository,
-    sessionPreferences: com.lastwave.app.data.local.SessionPreferences,
-    ytAuthManager: com.lastwave.app.data.ytmusic.YtMusicAuthManager,
+    authRepository: AuthRepository,
+    sessionPreferences: SessionPreferences,
+    ytAuthManager: YtMusicAuthManager,
 ) : ViewModel() {
     sealed interface GateTarget {
         data object Loading : GateTarget
@@ -83,15 +110,13 @@ class LaunchGateViewModel @Inject constructor(
         data object MainShell : GateTarget
     }
 
-    val gateTarget: kotlinx.coroutines.flow.StateFlow<GateTarget> =
-        kotlinx.coroutines.flow.combine(
+    val gateTarget: StateFlow<GateTarget> =
+        combine(
             authRepository.authState,
             sessionPreferences.session,
             sessionPreferences.guestMode,
             ytAuthManager.connection,
         ) { authState, session, guestMode, ytConnection ->
-            // Wait for DataStore to load before deciding; otherwise every
-            // cold start would flash Login.
             if (!session.isLoaded) {
                 GateTarget.Loading
             } else if (authState is AuthState.Unknown) {
@@ -107,7 +132,7 @@ class LaunchGateViewModel @Inject constructor(
             }
         }.stateIn(
             scope = viewModelScope,
-            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.WhileSubscribed(5_000),
             initialValue = GateTarget.Loading,
         )
 }
@@ -115,8 +140,12 @@ class LaunchGateViewModel @Inject constructor(
 @Composable
 fun LastWaveNavHost(
     navController: NavHostController = rememberNavController(),
+    modifier: Modifier = Modifier,
+    mixNavBridge: MixLauncherNavBridge = hiltViewModel(),
+    appRouteBridge: AppRouteNavBridge = hiltViewModel(),
+    genreExplorerBridge: GenreExplorerNavBridge = hiltViewModel(),
+    navBridge: ArtistAlbumNavBridge = hiltViewModel(),
 ) {
-    val mixNavBridge: MixLauncherNavBridge = hiltViewModel()
     val pendingMixSeed by mixNavBridge.mixLauncher.pendingSeed.collectAsStateWithLifecycle()
     LaunchedEffect(pendingMixSeed) {
         if (pendingMixSeed != null) {
@@ -125,7 +154,7 @@ fun LastWaveNavHost(
             }
         }
     }
-    val appRouteBridge: AppRouteNavBridge = hiltViewModel()
+
     val pendingAppRoute by appRouteBridge.routeNavigator.pendingRoute.collectAsStateWithLifecycle()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
@@ -142,11 +171,7 @@ fun LastWaveNavHost(
             appRouteBridge.routeNavigator.consumeRoute()
         }
     }
-    // "Explore this genre" from any track's context menu, anywhere in the
-    // app — Home, Discover, Playlist, Search — routes here since Genres
-    // is a pushed destination on THIS nav controller and none of those
-    // screens hold a reference to it. See GenreExplorer's doc comment.
-    val genreExplorerBridge: GenreExplorerNavBridge = hiltViewModel()
+
     val pendingGenre by genreExplorerBridge.pendingGenre.collectAsStateWithLifecycle()
     LaunchedEffect(pendingGenre) {
         if (pendingGenre != null) {
@@ -156,15 +181,8 @@ fun LastWaveNavHost(
         }
     }
 
-    val navBridge: ArtistAlbumNavBridge = hiltViewModel()
-    LaunchedEffect(Unit) {
+    LaunchedEffect(navController, navBridge) {
         navBridge.navigator.events.collect { target ->
-            // Drill-down destinations MUST push a fresh back-stack entry every
-            // time: launchSingleTop would collapse Artist A -> Artist B (or
-            // Album X -> Album Y) into the top entry since they share one
-            // destination node, leaving taps on similar artists / more-by
-            // albums visibly dead and the detail ViewModel showing stale data.
-            // Rapid double-tap dedup already lives in ArtistAlbumNavigator.
             when (target) {
                 is ArtistAlbumNavTarget.Artist -> {
                     navController.navigate(Screen.ArtistDetail.createRoute(target.name, target.browseId))
@@ -179,16 +197,13 @@ fun LastWaveNavHost(
     NavHost(
         navController = navController,
         startDestination = Screen.Splash.route,
+        modifier = modifier,
         enterTransition = { ExpressiveMotion.forwardEnter() },
         exitTransition = { ExpressiveMotion.forwardExit() },
         popEnterTransition = { ExpressiveMotion.backEnter() },
         popExitTransition = { ExpressiveMotion.backExit() },
     ) {
 
-        // Resolves the persisted session BEFORE showing any interactive UI.
-        // YouTube Music-first gate: MainShell when Last.fm signed in OR
-        // YouTube Music connected OR guest mode was previously selected.
-        // This keeps login persistent without flashing Login on cold start.
         composable(Screen.Splash.route) {
             val gateViewModel: LaunchGateViewModel = hiltViewModel()
             val gateTarget by gateViewModel.gateTarget.collectAsStateWithLifecycle()
@@ -201,7 +216,7 @@ fun LastWaveNavHost(
                     LaunchGateViewModel.GateTarget.Login -> navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
-                    LaunchGateViewModel.GateTarget.Loading -> Unit // keep waiting
+                    LaunchGateViewModel.GateTarget.Loading -> Unit
                 }
             }
 
@@ -214,13 +229,9 @@ fun LastWaveNavHost(
             val gateTarget by gateViewModel.gateTarget.collectAsStateWithLifecycle()
             val webAuthState by authViewModel.webAuthState.collectAsStateWithLifecycle()
 
-            // YouTube Music-first onboarding: any onboarded signal (Last.fm
-            // session, YT connection, or guest flag) skips straight to
-            // MainShell. YT login returns here via YouTubeLogin's onConnected
-            // pop, then this effect immediately forwards to MainShell.
             LaunchedEffect(gateTarget, webAuthState) {
                 if (gateTarget == LaunchGateViewModel.GateTarget.MainShell &&
-                    webAuthState == com.lastwave.app.ui.auth.WebAuthState.Idle
+                    webAuthState == WebAuthState.Idle
                 ) {
                     navController.navigate(Screen.MainShell.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -228,8 +239,8 @@ fun LastWaveNavHost(
                 }
             }
 
-            val restoreError = (webAuthState as? com.lastwave.app.ui.auth.WebAuthState.Error)?.message
-            val restoring = webAuthState == com.lastwave.app.ui.auth.WebAuthState.RestoringBackup
+            val restoreError = (webAuthState as? WebAuthState.Error)?.message
+            val restoring = webAuthState == WebAuthState.RestoringBackup
             LoginScreen(
                 onLoginWithYouTube = {
                     navController.navigate(Screen.YouTubeLogin.route)
@@ -247,12 +258,6 @@ fun LastWaveNavHost(
             )
         }
 
-        // Post-login container: Material3 bottom nav with Home/Generate/
-        // Playlists as swipeable tabs. Settings, Search, and Discover are
-        // NOT tabs — they're pushed screens reached from Home's top app bar
-        // (profile icon / search icon / discover icon), on this same root
-        // nav controller, so they can pop back cleanly and (on log out /
-        // clear session) return all the way to Login.
         composable(Screen.MainShell.route) {
             MainShell(
                 onOpenSettings = {
@@ -282,7 +287,7 @@ fun LastWaveNavHost(
 
         composable(Screen.Create.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.generate.GenerateScreen(
+                GenerateScreen(
                     onNavigateToPlaylist = { playlistId ->
                         navController.popBackStack()
                         if (playlistId != null) {
@@ -294,29 +299,13 @@ fun LastWaveNavHost(
             }
         }
 
-        // Friends is a real pushed screen (not a Dialog/ModalBottomSheet) —
-        // both of those were tried first and both had the same underlying
-        // problem: getting a Compose overlay to genuinely claim the full
-        // real window (not just "as tall as its own content measured
-        // itself to be", which is all either API reliably guarantees
-        // without extra low-level workarounds) turned out to be fragile
-        // enough, even after direct fixes, that it kept regressing. A
-        // normal NavHost destination gets full-screen sizing for free —
-        // every other pushed screen here (Settings, Search, Discover,
-        // Genres, ScrobblerApps) already renders correctly edge-to-edge —
-        // so Friends now works exactly like those instead of being a
-        // special case. It shares Home's own HomeViewModel (scoped to
-        // MainShell's back stack entry) rather than getting a fresh one,
-        // since the friends list / switch-profile state already lives
-        // there and switching profile needs to affect the Home tab
-        // underneath once you pop back.
         composable(Screen.Friends.route) { backStackEntry ->
             val parentEntry = remember(backStackEntry) {
                 navController.getBackStackEntry(Screen.MainShell.route)
             }
-            val homeViewModel: com.lastwave.app.ui.home.HomeViewModel = hiltViewModel(parentEntry)
+            val homeViewModel: HomeViewModel = hiltViewModel(parentEntry)
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.home.FriendsScreen(
+                FriendsScreen(
                     viewModel = homeViewModel,
                     onBack = { navController.popBackStack() },
                     onOpenFriendProfile = { username, displayName, avatarUrl ->
@@ -329,13 +318,13 @@ fun LastWaveNavHost(
         composable(
             route = Screen.FriendProfile.route,
             arguments = listOf(
-                androidx.navigation.navArgument("username") { type = androidx.navigation.NavType.StringType },
-                androidx.navigation.navArgument("displayName") {
-                    type = androidx.navigation.NavType.StringType
+                navArgument("username") { type = NavType.StringType },
+                navArgument("displayName") {
+                    type = NavType.StringType
                     defaultValue = ""
                 },
-                androidx.navigation.navArgument("avatarUrl") {
-                    type = androidx.navigation.NavType.StringType
+                navArgument("avatarUrl") {
+                    type = NavType.StringType
                     defaultValue = ""
                 },
             ),
@@ -344,7 +333,7 @@ fun LastWaveNavHost(
             val displayName = backStackEntry.arguments?.getString("displayName")?.takeIf(String::isNotBlank)
             val avatarUrl = backStackEntry.arguments?.getString("avatarUrl")?.takeIf(String::isNotBlank)
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.home.FriendProfileScreen(
+                FriendProfileScreen(
                     username = username,
                     initialDisplayName = displayName,
                     initialAvatarUrl = avatarUrl,
@@ -359,25 +348,12 @@ fun LastWaveNavHost(
             }
         }
 
-        // Every pushed-on-top destination below is wrapped in
-        // PredictiveBackScreen so Android's predictive back gesture (drag
-        // in from the edge) scales/rounds/dims the screen in real time
-        // instead of using a canned pop transition — see its doc comment
-        // for exactly what it does and does not animate. The screen's own
-        // onBack (its toolbar back button) still pops directly; the wrap
-        // only adds the gesture-driven path, it doesn't replace the
-        // button's.
         composable(Screen.Genres.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
                 GenresScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToPlaylist = {
                         navController.popBackStack()
-                        // Playlist tab already re-reads on resume (PlaylistViewModel's
-                        // LifecycleResumeEffect), so popping back to MainShell is
-                        // sufficient — no separate "switch tab" signal is needed here
-                        // since MainShell always shows Playlists as one of its tabs
-                        // and the user lands back wherever they left MainShell.
                     },
                 )
             }
@@ -406,7 +382,7 @@ fun LastWaveNavHost(
 
         composable(Screen.YouTubeImport.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.settings.YouTubePlaylistImportScreen(
+                YouTubePlaylistImportScreen(
                     onBack = { navController.popBackStack() },
                     onImportSuccess = {
                         navController.popBackStack()
@@ -417,16 +393,16 @@ fun LastWaveNavHost(
 
         composable(Screen.YouTubeLogin.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.settings.YouTubeLoginScreen(
+                YouTubeLoginScreen(
                     onBack = { navController.popBackStack() },
-                    onConnected = { navController.popBackStack() },
+                    onConnect = { navController.popBackStack() },
                 )
             }
         }
 
         composable(Screen.ExternalPlaylistImport.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.settings.ExternalPlaylistImportScreen(
+                ExternalPlaylistImportScreen(
                     onBack = { navController.popBackStack() },
                     onImportSuccess = {
                         navController.popBackStack()
@@ -437,31 +413,31 @@ fun LastWaveNavHost(
 
         composable(Screen.Downloads.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.settings.DownloadsScreen(onBack = { navController.popBackStack() })
+                DownloadsScreen(onBack = { navController.popBackStack() })
             }
         }
 
         composable(Screen.ProviderModules.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.settings.ModulesScreen(onBack = { navController.popBackStack() })
+                ModulesScreen(onBack = { navController.popBackStack() })
             }
         }
 
         composable(Screen.HomeSections.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.settings.HomeSectionsScreen(onBack = { navController.popBackStack() })
+                HomeSectionsScreen(onBack = { navController.popBackStack() })
             }
         }
 
         composable(Screen.ExcludedSongs.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.settings.ExcludedSongsScreen(onBack = { navController.popBackStack() })
+                ExcludedSongsScreen(onBack = { navController.popBackStack() })
             }
         }
 
         composable(Screen.ScrobblerApps.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.settings.ScrobblerAppsScreen(onBack = { navController.popBackStack() })
+                ScrobblerAppsScreen(onBack = { navController.popBackStack() })
             }
         }
 
@@ -490,7 +466,7 @@ fun LastWaveNavHost(
 
         composable(Screen.NewReleases.route) {
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.newreleases.NewReleasesScreen(
+                NewReleasesScreen(
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -499,14 +475,14 @@ fun LastWaveNavHost(
         composable(
             route = Screen.FeedPlaylistDetail.route,
             arguments = listOf(
-                androidx.navigation.navArgument("playlistId") {
-                    type = androidx.navigation.NavType.StringType
+                navArgument("playlistId") {
+                    type = NavType.StringType
                 },
             ),
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getString("playlistId").orEmpty()
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.feed.FeedPlaylistDetailScreen(
+                FeedPlaylistDetailScreen(
                     playlistId = playlistId,
                     onBack = { navController.popBackStack() },
                 )
@@ -516,14 +492,14 @@ fun LastWaveNavHost(
         composable(
             route = Screen.PlaylistDetail.route,
             arguments = listOf(
-                androidx.navigation.navArgument("playlistId") {
-                    type = androidx.navigation.NavType.LongType
+                navArgument("playlistId") {
+                    type = NavType.LongType
                 },
             ),
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: return@composable
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.playlist.PlaylistDetailScreen(
+                PlaylistDetailScreen(
                     playlistId = playlistId,
                     onBack = { navController.popBackStack() },
                     onOpenPlaylist = { newId ->
@@ -536,9 +512,9 @@ fun LastWaveNavHost(
         composable(
             route = Screen.ArtistDetail.route,
             arguments = listOf(
-                androidx.navigation.navArgument("artistName") { type = androidx.navigation.NavType.StringType },
-                androidx.navigation.navArgument("browseId") {
-                    type = androidx.navigation.NavType.StringType
+                navArgument("artistName") { type = NavType.StringType },
+                navArgument("browseId") {
+                    type = NavType.StringType
                     defaultValue = ""
                 },
             ),
@@ -546,7 +522,7 @@ fun LastWaveNavHost(
             val artistName = backStackEntry.arguments?.getString("artistName").orEmpty()
             val browseId = backStackEntry.arguments?.getString("browseId")?.takeIf(String::isNotBlank)
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.artist.ArtistDetailScreen(
+                ArtistDetailScreen(
                     artistName = artistName,
                     browseId = browseId,
                     onBack = { navController.popBackStack() },
@@ -563,13 +539,13 @@ fun LastWaveNavHost(
         composable(
             route = Screen.AlbumDetail.route,
             arguments = listOf(
-                androidx.navigation.navArgument("albumTitle") { type = androidx.navigation.NavType.StringType },
-                androidx.navigation.navArgument("artistName") {
-                    type = androidx.navigation.NavType.StringType
+                navArgument("albumTitle") { type = NavType.StringType },
+                navArgument("artistName") {
+                    type = NavType.StringType
                     defaultValue = ""
                 },
-                androidx.navigation.navArgument("browseId") {
-                    type = androidx.navigation.NavType.StringType
+                navArgument("browseId") {
+                    type = NavType.StringType
                     defaultValue = ""
                 },
             ),
@@ -578,7 +554,7 @@ fun LastWaveNavHost(
             val artistName = backStackEntry.arguments?.getString("artistName").orEmpty()
             val browseId = backStackEntry.arguments?.getString("browseId")?.takeIf(String::isNotBlank)
             PredictiveBackScreen(onBack = { navController.popBackStack() }) {
-                com.lastwave.app.ui.album.AlbumDetailScreen(
+                AlbumDetailScreen(
                     albumTitle = albumTitle,
                     artistName = artistName,
                     browseId = browseId,
@@ -606,8 +582,8 @@ private fun LaunchGate() {
                 shadowElevation = 10.dp,
                 modifier = Modifier.size(88.dp),
             ) {
-                androidx.compose.foundation.Image(
-                    painter = painterResource(com.lastwave.app.R.drawable.ic_launcher_foreground),
+                Image(
+                    painter = painterResource(R.drawable.ic_launcher_foreground),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                 )

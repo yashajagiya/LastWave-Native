@@ -31,7 +31,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Lyrics
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipNext
@@ -58,7 +57,6 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import com.lastwave.app.ui.theme.LocalLiquidGlass
 import com.lastwave.app.ui.theme.LiquidGlassPreset
-import com.lastwave.app.ui.theme.LiquidGlassSurface
 import com.lastwave.app.ui.theme.liquidGlassChrome
 import com.lastwave.app.ui.theme.liquidGlassContainerColor
 import androidx.compose.ui.Modifier
@@ -100,16 +98,16 @@ fun ModernLyricsPanel(
     state: MusicPlayerState,
     player: MusicPlayer,
     lyricsState: LyricsUiState,
+    modifier: Modifier = Modifier,
     progressState: StateFlow<PlaybackProgressState>? = null,
     wavySeekbarEnabled: Boolean = true,
     onToggleFullscreen: (() -> Unit)? = null,
     isFullscreen: Boolean = false,
     onRetry: () -> Unit = {},
     onOpenLyricsOffset: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
     /** Manual sync correction (ms, + = lyrics earlier). Applies to lyric
      *  focus/highlight only — the seekbar below keeps true position. */
-    lyricsOffsetMs: Long = 0L,
+    lyricsOffsetMs: Long = 0L
 ) {
     val track = state.current ?: return
 
@@ -408,7 +406,7 @@ private fun KaraokeLineWrapScope(
             currentPosition = currentPosition,
             onLineClicked = { line ->
                 // Inverse of the highlight shift: tap targets audio time.
-                player.seekTo((line.start - lyricsOffsetMs).coerceAtLeast(0).toLong())
+                player.seekTo((line.start - lyricsOffsetMs).coerceAtLeast(0))
             },
             onLinePressed = {},
             modifier = Modifier
@@ -479,7 +477,7 @@ private fun LyricLine.toISyncedLine(isOverallRtl: Boolean = false): ISyncedLine 
                 var sEnd = (sStart + minDur).coerceAtLeast(sStart + 50)
                 val nextStart = getOrNull(index + 1)?.timeMs?.toInt()
                 if (nextStart != null && nextStart > sStart && sEnd > nextStart) sEnd = nextStart
-                if (rowEnd > sStart && sEnd > rowEnd) sEnd = rowEnd
+                if (rowEnd in (sStart + 1)..<sEnd) sEnd = rowEnd
                 KaraokeSyllable(
                     content = contents[index],
                     start = sStart,
@@ -646,12 +644,13 @@ private fun ModernLyricsControls(
     currentPositionMs: Long,
     totalDurationMs: Long,
     player: MusicPlayer,
+    modifier: Modifier = Modifier,
     wavySeekbarEnabled: Boolean = true,
     onToggleFullscreen: (() -> Unit)? = null,
     isFullscreen: Boolean = false,
     lyricsOffsetMs: Long = 0L,
     onOpenLyricsOffset: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
+    liquidGlass: Boolean = LocalLiquidGlass.current,
 ) {
     Column(
         modifier = modifier
@@ -685,7 +684,7 @@ private fun ModernLyricsControls(
                                 scaleY = offsetScale
                             }
                             .clip(CircleShape)
-                            .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = offsetInteraction)
+                            .liquidGlassChrome(CircleShape, liquidGlass, LiquidGlassPreset.FloatingControls, interactionSource = offsetInteraction)
                             .background(
                                 liquidGlassContainerColor(
                                     if (lyricsOffsetMs != 0L) MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
@@ -722,7 +721,7 @@ private fun ModernLyricsControls(
                                 scaleY = playerScale
                             }
                             .clip(CircleShape)
-                            .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = playerInteraction)
+                            .liquidGlassChrome(CircleShape, liquidGlass, LiquidGlassPreset.FloatingControls, interactionSource = playerInteraction)
                             .background(
                                 liquidGlassContainerColor(Color.White.copy(alpha = 0.14f)),
                             ),
@@ -807,7 +806,7 @@ private fun ModernLyricsControls(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = prevInteraction)
+                        .liquidGlassChrome(CircleShape, liquidGlass, LiquidGlassPreset.FloatingControls, interactionSource = prevInteraction)
                         .background(liquidGlassContainerColor(Color.White.copy(alpha = 0.14f))),
                 ) {
                     Icon(
@@ -825,7 +824,7 @@ private fun ModernLyricsControls(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = playInteraction)
+                        .liquidGlassChrome(CircleShape, liquidGlass, LiquidGlassPreset.FloatingControls, interactionSource = playInteraction)
                         .background(liquidGlassContainerColor(Color.White.copy(alpha = 0.18f))),
                 ) {
                     if (state.isBuffering) {
@@ -846,7 +845,7 @@ private fun ModernLyricsControls(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .liquidGlassChrome(CircleShape, LocalLiquidGlass.current, LiquidGlassPreset.FloatingControls, interactionSource = nextInteraction)
+                        .liquidGlassChrome(CircleShape, liquidGlass, LiquidGlassPreset.FloatingControls, interactionSource = nextInteraction)
                         .background(liquidGlassContainerColor(Color.White.copy(alpha = 0.14f))),
                 ) {
                     Icon(

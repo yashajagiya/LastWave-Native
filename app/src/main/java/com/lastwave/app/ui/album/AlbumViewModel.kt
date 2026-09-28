@@ -1,6 +1,7 @@
 package com.lastwave.app.ui.album
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.generate.GeneratedTrack
@@ -37,6 +38,7 @@ data class AlbumSaveUiState(
     val saveError: String? = null,
 )
 
+@Stable
 @HiltViewModel
 class AlbumViewModel @Inject constructor(
     private val repository: AlbumRepository,

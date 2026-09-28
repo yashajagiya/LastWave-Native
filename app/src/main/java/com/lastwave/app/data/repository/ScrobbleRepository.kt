@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The two signed calls LastWave's own scrobbler (MediaScrobbleListenerService)
@@ -176,7 +177,7 @@ class ScrobbleRepository @Inject constructor(
         // stricter about authenticated write endpoints than reads.
         val sinceLastWrite = SystemClock.elapsedRealtime() - lastWriteAtElapsed
         if (sinceLastWrite in 1 until WRITE_SPACING_MS) {
-            delay(WRITE_SPACING_MS - sinceLastWrite)
+            delay((WRITE_SPACING_MS - sinceLastWrite).milliseconds)
         }
 
         return try {

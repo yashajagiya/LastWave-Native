@@ -1,6 +1,5 @@
 package com.lastwave.app.data.artwork
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -60,7 +59,11 @@ class ITunesArtworkProvider @Inject constructor(
         // returned another artist's cover (visible as wrong art on Home too).
         // Score a small candidate set and publish only a verified match.
         val track = term.substringBeforeLast(" ").ifBlank { term }
-        val url = "https://itunes.apple.com/search?term=${URLEncoder.encode(term, "UTF-8")}&media=music&entity=song&limit=5"
+        val url = "https://itunes.apple.com/search?term=${
+            withContext(Dispatchers.IO) {
+                URLEncoder.encode(term, "UTF-8")
+            }
+        }&media=music&entity=song&limit=5"
         try {
             val request = Request.Builder().url(url).build()
             val body = client.newCall(request).awaitSuccessfulBodyOrNull() ?: return null

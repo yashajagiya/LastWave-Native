@@ -74,7 +74,7 @@ internal fun splitArtists(raw: String): List<String> =
         .filter { it.isNotBlank() }
 
 private val ARTIST_SEPARATORS = Regex(
-    "(?:\\s*,\\s*|\\s*&\\s*|\\s+×\\s+|\\s+x\\s+|\\bfeat\\.?\\b|\\bft\\.?\\b|\\bfeaturing\\b|\\bwith\\b)",
+    "\\s*,\\s*|\\s*&\\s*|\\s+×\\s+|\\s+x\\s+|\\bfeat\\.?\\b|\\bft\\.?\\b|\\bfeaturing\\b|\\bwith\\b",
     RegexOption.IGNORE_CASE,
 )
 

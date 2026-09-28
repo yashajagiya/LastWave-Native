@@ -76,7 +76,7 @@ private val YOUTUBE_VIDEO_ID_REGEX = Regex("[A-Za-z0-9_-]{11}")
 object GenerateJson {
 
     fun asObjectList(element: JsonElement?): List<JsonObject> = when (element) {
-        is JsonArray -> element.mapNotNull { it as? JsonObject }
+        is JsonArray -> element.filterIsInstance<JsonObject>()
         is JsonObject -> listOf(element)
         else -> emptyList()
     }
@@ -96,7 +96,7 @@ object GenerateJson {
     }
 
     private fun JsonObject.bestImageUrl(): String? {
-        val images = (this["image"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: return null
+        val images = (this["image"] as? JsonArray)?.filterIsInstance<JsonObject>() ?: return null
         fun bySize(size: String) = images.firstOrNull { it.stringOrNull("size") == size }
             ?.stringOrNull("#text")?.takeIf { ArtworkNormalizer.isRealImage(it) }
         return bySize("extralarge")

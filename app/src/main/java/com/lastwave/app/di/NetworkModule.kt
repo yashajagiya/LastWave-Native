@@ -1,7 +1,7 @@
 package com.lastwave.app.di
 
 import android.content.Context
-import com.lastwave.app.BuildConfig
+import androidx.media3.common.BuildConfig
 import com.lastwave.app.data.network.LastFmApiService
 import com.lastwave.app.data.network.LastFmRateGuard
 import dagger.Module
@@ -14,12 +14,8 @@ import java.util.concurrent.TimeUnit
 import okhttp3.Cache
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
-import okhttp3.Interceptor
 import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
 import okhttp3.Response
-import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import javax.inject.Singleton

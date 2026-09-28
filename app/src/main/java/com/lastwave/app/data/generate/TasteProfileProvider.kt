@@ -145,7 +145,6 @@ class TasteProfileProvider @Inject constructor(
                 val chartTagsResult = chartTagsDeferred.await()
 
                 topTracksRaw = chartTracksResult?.let { GenerateJson.normalise(it["tracks"]?.jsonObject?.get("track")) }
-                    ?: chartTracksResult?.let { GenerateJson.normalise(it["toptracks"]?.jsonObject?.get("track")) }
                     ?: emptyList()
                 recentRaw = topTracksRaw
 

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.lastwave.app.R
 import com.lastwave.app.playback.SignalPathReport
+import com.lastwave.app.ui.theme.Backdrop
 import com.lastwave.app.ui.theme.LiquidGlassPreset
 import com.lastwave.app.ui.theme.LocalLiquidGlass
 import com.lastwave.app.ui.theme.LocalLiquidGlassOverlayBackdrop
@@ -51,9 +52,11 @@ fun SignalPathDialog(
     needsUsbPermission: Boolean,
     onRequestUsbAccess: () -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    liquidGlassOverlayBackdrop: Backdrop? = LocalLiquidGlassOverlayBackdrop.current,
+    liquidGlass: Boolean = LocalLiquidGlass.current,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        val glass = LocalLiquidGlass.current
         Surface(
             shape = RoundedCornerShape(24.dp),
             // Dense diagnostic text: keep this dialog opaque even when liquid
@@ -63,12 +66,12 @@ fun SignalPathDialog(
             // unreadable.
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            tonalElevation = if (glass) 0.dp else 6.dp,
-            modifier = Modifier.liquidGlassChrome(
+            tonalElevation = if (liquidGlass) 0.dp else 6.dp,
+            modifier = modifier.liquidGlassChrome(
                 RoundedCornerShape(24.dp),
-                glass,
+                liquidGlass,
                 LiquidGlassPreset.ModalSheet,
-                LocalLiquidGlassOverlayBackdrop.current,
+                liquidGlassOverlayBackdrop,
             ),
         ) {
             Column(

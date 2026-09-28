@@ -8,7 +8,6 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
 
 /**
  * Last.fm's `track` (and `artist`/`album` in other list responses) comes back
@@ -23,8 +22,7 @@ object RecentTracksListSerializer : KSerializer<RecentTracksList> {
     override fun deserialize(decoder: Decoder): RecentTracksList {
         val input = decoder as? JsonDecoder
             ?: error("RecentTracksListSerializer only supports JSON decoding")
-        val element = input.decodeJsonElement()
-        val tracks = when (element) {
+        val tracks = when (val element = input.decodeJsonElement()) {
             is JsonArray -> element.map { input.json.decodeFromJsonElement(RecentTrack.serializer(), it) }
             is JsonObject -> listOf(input.json.decodeFromJsonElement(RecentTrack.serializer(), element))
             else -> emptyList()

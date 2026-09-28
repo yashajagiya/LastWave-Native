@@ -1,18 +1,16 @@
 package com.lastwave.app.ui.artist
 
-import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lastwave.app.data.model.ArtistPageData
 import com.lastwave.app.data.repository.ArtistRepository
 import com.lastwave.app.playback.MusicPlayer
-import com.lastwave.app.playback.PlayableTrack
 import com.lastwave.app.ui.generate.MixLauncher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
@@ -31,6 +29,7 @@ sealed interface ArtistUiState {
     data class Error(val message: String) : ArtistUiState
 }
 
+@Stable
 @HiltViewModel
 class ArtistViewModel @Inject constructor(
     private val repository: ArtistRepository,

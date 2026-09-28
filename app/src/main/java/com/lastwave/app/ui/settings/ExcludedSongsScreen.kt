@@ -29,11 +29,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -72,12 +74,14 @@ class ExcludedSongsViewModel @Inject constructor(
 @Composable
 fun ExcludedSongsScreen(
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     viewModel: ExcludedSongsViewModel = hiltViewModel(),
 ) {
     val exclusions by viewModel.exclusions.collectAsStateWithLifecycle()
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(
@@ -135,7 +139,7 @@ fun ExcludedSongsScreen(
                     start = 16.dp,
                     end = 16.dp,
                     top = 14.dp,
-                    bottom = 28.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                    bottom = 28.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                 ),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -163,8 +167,10 @@ private fun ExcludedSongRow(
     val artist = exclusion.artistName.ifBlank {
         legacyParts.getOrNull(1).orEmpty().legacyDisplayName("Unknown artist")
     }
-    val date = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-        .format(Date(exclusion.excludedAtMillis))
+    val date = remember(exclusion.excludedAtMillis) {
+        SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+            .format(Date(exclusion.excludedAtMillis))
+    }
 
     LiquidGlassCard(
         modifier = Modifier.fillMaxWidth(),

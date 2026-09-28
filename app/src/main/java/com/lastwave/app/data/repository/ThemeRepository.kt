@@ -196,7 +196,7 @@ class ThemeRepository @Inject constructor(
         val nowPlayingActive = misc.dynamicNowPlayingEnabled && nowPlaying != null
         val (darkScheme, lightScheme) = when {
             nowPlayingActive -> {
-                val dark = Md3SchemeBuilder.buildDarkScheme(nowPlaying!!, isAmoled, isGlass)
+                val dark = Md3SchemeBuilder.buildDarkScheme(nowPlaying, isAmoled, isGlass)
                 val light = Md3SchemeBuilder.buildLightScheme(nowPlaying, isGlass)
                 dark to light
             }

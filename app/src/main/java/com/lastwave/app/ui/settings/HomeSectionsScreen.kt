@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Dashboard
@@ -35,7 +36,6 @@ import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -85,7 +86,7 @@ private fun HomeSection.icon(): ImageVector = when (this) {
     HomeSection.TOP_ARTISTS -> Icons.Filled.People
     HomeSection.HEAVY_ROTATION -> Icons.Filled.Favorite
     HomeSection.ALBUMS -> Icons.Filled.Album
-    HomeSection.CHARTS -> Icons.Filled.TrendingUp
+    HomeSection.CHARTS -> Icons.AutoMirrored.Filled.TrendingUp
     HomeSection.NEW_RELEASES -> Icons.Filled.NewReleases
     HomeSection.FRIENDS -> Icons.Filled.Group
 }
@@ -114,13 +115,15 @@ class HomeSectionsViewModel @Inject constructor(
 @Composable
 fun HomeSectionsScreen(
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     viewModel: HomeSectionsViewModel = hiltViewModel(),
 ) {
     val hidden by viewModel.hiddenSections.collectAsStateWithLifecycle()
     val visibleCount = HomeSection.entries.size - hidden.size
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(
@@ -158,7 +161,7 @@ fun HomeSectionsScreen(
                     start = 16.dp,
                     end = 16.dp,
                     top = 4.dp,
-                    bottom = 32.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                    bottom = 32.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                 ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize().safeHorizontalContentPadding(),

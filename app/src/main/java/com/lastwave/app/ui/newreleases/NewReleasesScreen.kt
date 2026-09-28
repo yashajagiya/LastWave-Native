@@ -43,23 +43,24 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lastwave.app.data.music.YouTubeMusicTrack
+import com.lastwave.app.playback.MusicPlayer
 import com.lastwave.app.playback.PlayableTrack
 import com.lastwave.app.ui.common.ArtworkImage
 import com.lastwave.app.ui.common.ExpressiveGroupTrackRow
@@ -82,39 +83,35 @@ import com.lastwave.app.ui.player.PlayingWaveBars
 
 @Composable
 fun NewReleasesScreen(
-    onBack: () -> Unit = {},
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    musicPlayer: MusicPlayer = LocalMusicPlayer.current,
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     viewModel: NewReleasesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val musicPlayer = LocalMusicPlayer.current
     val playbackState by musicPlayer.chromeState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var menuTrack by remember { mutableStateOf<YouTubeMusicTrack?>(null) }
 
-    // System back / predictive-back gesture is owned by the wrapping
-    // PredictiveBackScreen in NavGraph (single handler per screen) — the
-    // header back button still pops directly via onBack.
-
-    // Infinite scroll trigger: when nearing bottom, load next batch
-    val shouldLoadMore by remember(listState, state.tracks.size) {
-        derivedStateOf {
+    LaunchedEffect(listState, state.tracks.size) {
+        snapshotFlow {
             val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             val count = state.tracks.size
             count > 0 && last >= count - 4
-        }
-    }
-    LaunchedEffect(shouldLoadMore, state.tracks.size) {
-        if (shouldLoadMore && !state.isLoading && !state.isLoadingMore && !state.endReached && state.error == null && !state.isRefreshing && state.tracks.isNotEmpty()) {
-            viewModel.loadMore()
+        }.collect { shouldLoadMore ->
+            if (shouldLoadMore && !state.isLoading && !state.isLoadingMore && !state.endReached && state.error == null && !state.isRefreshing && state.tracks.isNotEmpty()) {
+                viewModel.loadMore()
+            }
         }
     }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .adaptiveContentWidth(maxWidth = 860.dp),
         ) {
@@ -141,11 +138,11 @@ fun NewReleasesScreen(
                                 start = 16.dp,
                                 end = 16.dp,
                                 top = 16.dp,
-                                bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                                bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                             ),
                             verticalArrangement = Arrangement.spacedBy(GroupGap),
                         ) {
-                            items(12) { index ->
+                            items(12, contentType = { "skeleton" }) { index ->
                                 NewReleasesSkeletonRow(
                                     brush = shimmer,
                                     position = when (index) {
@@ -209,12 +206,12 @@ fun NewReleasesScreen(
                                 state = listState,
                                 contentPadding = PaddingValues(
                                     top = 10.dp,
-                                    bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                                    bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                                 ),
                                 verticalArrangement = Arrangement.spacedBy(GroupGap),
                                 modifier = Modifier.fillMaxSize(),
                             ) {
-                                item(key = "controls_header") {
+                                item(key = "controls_header", contentType = "header") {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -253,10 +250,12 @@ fun NewReleasesScreen(
                                             (playbackState.current?.title.equals(track.title, ignoreCase = true) &&
                                                 playbackState.current?.artist.equals(track.artist, ignoreCase = true)))
 
-                                    val subtitle = listOfNotNull(
-                                        track.artist.takeIf(String::isNotBlank),
-                                        track.album?.takeIf(String::isNotBlank),
-                                    ).joinToString(" · ").ifBlank { "New release" }
+                                    val subtitle = remember(track.artist, track.album) {
+                                        listOfNotNull(
+                                            track.artist.takeIf(String::isNotBlank),
+                                            track.album?.takeIf(String::isNotBlank),
+                                        ).joinToString(" · ").ifBlank { "New release" }
+                                    }
 
                                     ExpressiveGroupTrackRow(
                                         title = track.title,
@@ -318,7 +317,7 @@ fun NewReleasesScreen(
                                 }
 
                                 if (state.error != null) {
-                                    item(key = "load_more_error") {
+                                    item(key = "load_more_error", contentType = "error") {
                                         TextButton(onClick = viewModel::loadMore, modifier = Modifier.fillMaxWidth()) {
                                             Text("Couldn't load more releases. Retry")
                                         }

@@ -14,7 +14,6 @@ import android.os.Build
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
-import androidx.core.app.NotificationManagerCompat
 import com.lastwave.app.R
 import java.io.File
 

@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,13 +40,15 @@ import com.lastwave.app.ui.common.adaptiveContentWidth
  */
 @Composable
 fun ScrobblerDebugLogScreen(
+    modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
     viewModel: ScrobblerDebugLogViewModel = hiltViewModel(),
 ) {
     val entries by viewModel.entries.collectAsStateWithLifecycle()
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         Column(
@@ -80,7 +83,7 @@ fun ScrobblerDebugLogScreen(
                     start = 16.dp,
                     end = 16.dp,
                     top = 12.dp,
-                    bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+                    bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
                 ),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.safeHorizontalContentPadding(),

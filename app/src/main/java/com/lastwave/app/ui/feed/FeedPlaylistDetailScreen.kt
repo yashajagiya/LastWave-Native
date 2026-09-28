@@ -1,5 +1,7 @@
 package com.lastwave.app.ui.feed
 
+import androidx.compose.ui.unit.Dp
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,6 +67,7 @@ import com.lastwave.app.ui.player.LocalMiniPlayerScrollClearance
 fun FeedPlaylistDetailScreen(
     playlistId: String,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: FeedPlaylistDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -74,7 +77,7 @@ fun FeedPlaylistDetailScreen(
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter,
@@ -137,12 +140,12 @@ fun FeedPlaylistDetailScreen(
                 }
                 PlaylistContent(
                     playlist = current.playlist,
-                    onPlay = viewModel::playFrom,
-                    onShuffle = viewModel::shuffle,
-                    onSave = viewModel::saveToLibrary,
                     isSaving = current.isSaving,
                     savedToLibrary = current.savedToLibrary,
                     saveError = current.saveError,
+                    onPlay = viewModel::playFrom,
+                    onShuffle = viewModel::shuffle,
+                    onSave = viewModel::saveToLibrary,
                 )
             }
         }
@@ -153,12 +156,13 @@ fun FeedPlaylistDetailScreen(
 @Composable
 private fun PlaylistContent(
     playlist: YouTubePlaylistResult,
-    onPlay: (Int) -> Unit,
-    onShuffle: () -> Unit,
-    onSave: () -> Unit,
     isSaving: Boolean,
     savedToLibrary: Boolean,
     saveError: String?,
+    onPlay: (Int) -> Unit,
+    onShuffle: () -> Unit,
+    onSave: () -> Unit,
+    miniPlayerScrollClearance: Dp = LocalMiniPlayerScrollClearance.current,
 ) {
     var menuTrack by remember { mutableStateOf<YouTubeMusicTrack?>(null) }
     // Long-press (deep press) opens the mini tray; 3-dot keeps the full sheet.
@@ -167,11 +171,11 @@ private fun PlaylistContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             top = 20.dp,
-            bottom = 24.dp + LocalMiniPlayerScrollClearance.current + safeDrawingBottomPadding(),
+            bottom = 24.dp + miniPlayerScrollClearance + safeDrawingBottomPadding(),
         ),
         verticalArrangement = Arrangement.spacedBy(GroupGap),
     ) {
-        item(key = "hero") {
+        item(key = "hero", contentType = "hero") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -233,11 +237,13 @@ private fun PlaylistContent(
                     enabled = !isSaving && !savedToLibrary,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(when {
-                        isSaving -> "Saving…"
-                        savedToLibrary -> "Saved to library"
-                        else -> "Save to library"
-                    })
+                    Text(
+                        when {
+                            isSaving -> "Saving…"
+                            savedToLibrary -> "Saved to library"
+                            else -> "Save to library"
+                        },
+                    )
                 }
                 saveError?.let { message ->
                     Text(message, color = MaterialTheme.colorScheme.error)
@@ -257,6 +263,7 @@ private fun PlaylistContent(
         itemsIndexed(
             items = playlist.tracks,
             key = { index, track -> "${track.videoId}:$index" },
+            contentType = { _, _ -> "track" },
         ) { index, track ->
             ExpressiveGroupTrackRow(
                 title = track.title,
@@ -331,8 +338,7 @@ private fun PlaylistContent(
                     artworkUrl = track.artworkUrl,
                     videoId = track.videoId.takeIf(String::isNotBlank),
                     sourceLabel = playlist.title.ifBlank { "Mix" },
-                    onPlay = { onPlay(trayIndex) },
-                ),
+                ) { onPlay(trayIndex) },
                 onDismiss = { miniTrayIndex = null },
             )
         }

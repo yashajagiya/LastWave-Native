@@ -57,6 +57,7 @@ import kotlinx.coroutines.isActive
 import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "CanvasArtworkPlayer"
 private const val REPAINT_TIMEOUT_MS = 700L
@@ -189,14 +190,14 @@ fun CanvasArtworkPlayer(
         if (player.playbackState != Player.STATE_IDLE) {
             player.seekTo(player.currentPosition)
         }
-        delay(REPAINT_TIMEOUT_MS)
+        delay(REPAINT_TIMEOUT_MS.milliseconds)
         if (frameTick == before) {
             rendered = false
         }
     }
 
     val reportRendered by rememberUpdatedState(onRenderedChanged)
-    LaunchedEffect(rendered) {
+    LaunchedEffect(rendered, onFrameCaptured) {
         reportRendered(rendered)
         if (!rendered) return@LaunchedEffect
         withFrameMillis { }
@@ -207,11 +208,13 @@ fun CanvasArtworkPlayer(
         }
     }
 
-    LaunchedEffect(rendered, refreshFrameEveryMs, frameCapturePx, clipAspect, contentMode, alignPortraitTop) {
+    LaunchedEffect(rendered, refreshFrameEveryMs, frameCapturePx, clipAspect, contentMode, alignPortraitTop,
+        onFrameCaptured
+    ) {
         val interval = refreshFrameEveryMs ?: return@LaunchedEffect
         if (!rendered) return@LaunchedEffect
         while (isActive) {
-            delay(interval)
+            delay(interval.milliseconds)
             val view = textureView ?: continue
             val bitmap = view.captureAt(frameCapturePx, clipAspect, contentMode, alignPortraitTop)
             if (bitmap != null) {
@@ -286,7 +289,7 @@ fun CanvasArtworkPlayer(
                             val view = textureView
                             val layoutReady = !portrait ||
                                 (expected != IntSize.Zero && view?.width == expected.width &&
-                                    view?.height == expected.height)
+                                    view.height == expected.height)
                             if ((currentContentMode == CanvasContentMode.CROP || transformed) && layoutReady) {
                                 rendered = true
                                 frameTick++
@@ -335,7 +338,7 @@ private fun TextureView.captureAt(
     val scale = maxPx.toFloat() / maxOf(viewWidth, viewHeight)
     return runCatching {
         val frame = if (scale >= 1f) {
-            getBitmap()
+            bitmap
         } else {
             getBitmap(
                 (viewWidth * scale).roundToInt().coerceAtLeast(1),

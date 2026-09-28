@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltAndroidApp
 class LastWaveApplication : Application(), ImageLoaderFactory {
@@ -56,7 +57,7 @@ class LastWaveApplication : Application(), ImageLoaderFactory {
         runCatching { com.lastwave.app.data.music.potoken.BotGuardTokenGenerator.initialize(this) }
         runCatching { com.lastwave.app.data.canvas.CanvasCache.init(this) }
         applicationScope.launch(Dispatchers.IO) {
-            delay(OPTIONAL_STARTUP_DELAY_MS)
+            delay(OPTIONAL_STARTUP_DELAY_MS.milliseconds)
             // A process kill can bypass TrackDownloadManager's finally block
             // and strand a full lossless track in cache. Remove only old temp
             // files so cleanup cannot race a newly started download.
@@ -91,7 +92,7 @@ class LastWaveApplication : Application(), ImageLoaderFactory {
         // YouTube Music playlist sync heartbeat (no-ops until an account is
         // connected AND sync is enabled in Settings).
         applicationScope.launch {
-            delay(OPTIONAL_STARTUP_DELAY_MS)
+            delay(OPTIONAL_STARTUP_DELAY_MS.milliseconds)
             runCatching { ytMusicSyncManager.get().start() }
                 .onFailure { android.util.Log.e("LastWaveStartup", "YT sync startup disabled", it) }
         }
@@ -99,14 +100,14 @@ class LastWaveApplication : Application(), ImageLoaderFactory {
         // connected AND history sync is enabled in Settings — on by default).
         // Observes playback state only; it can never affect audio delivery.
         applicationScope.launch {
-            delay(OPTIONAL_STARTUP_DELAY_MS)
+            delay(OPTIONAL_STARTUP_DELAY_MS.milliseconds)
             runCatching { ytMusicHistorySyncManager.get().start() }
                 .onFailure { android.util.Log.e("LastWaveStartup", "YT history sync startup disabled", it) }
         }
         // Reconcile public download directory & MediaStore with local database
         // asynchronously on startup so offline playback works immediately.
         applicationScope.launch(Dispatchers.IO) {
-            delay(OPTIONAL_STARTUP_DELAY_MS)
+            delay(OPTIONAL_STARTUP_DELAY_MS.milliseconds)
             runCatching { trackDownloadManager.get().syncDownloadsFromStorage() }
                 .onFailure { android.util.Log.e("LastWaveStartup", "Download sync startup failed", it) }
         }
@@ -116,7 +117,7 @@ class LastWaveApplication : Application(), ImageLoaderFactory {
         // dedupe on those — otherwise ANY DataStore settings change (pins,
         // toggles, font) rebuilt every placed widget.
         applicationScope.launch(Dispatchers.IO) {
-            delay(OPTIONAL_STARTUP_DELAY_MS)
+            delay(OPTIONAL_STARTUP_DELAY_MS.milliseconds)
             try {
                 themeRepository.get().uiState
                     .map { it.colorScheme.primary to it.colorScheme.onPrimary }
@@ -147,7 +148,7 @@ class LastWaveApplication : Application(), ImageLoaderFactory {
      */
     override fun newImageLoader(): ImageLoader {
         val lowRamDevice = runCatching {
-            (getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)?.isLowRamDevice == true
+            (getSystemService(ACTIVITY_SERVICE) as? ActivityManager)?.isLowRamDevice == true
         }.getOrDefault(false)
         val imageClient = try {
             okHttpClient.get().newBuilder()

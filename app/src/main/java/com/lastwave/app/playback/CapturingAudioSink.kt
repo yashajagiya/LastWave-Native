@@ -5,6 +5,7 @@ import androidx.media3.common.AuxEffectInfo
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioSink
 import java.io.File
 import java.io.OutputStream
@@ -19,6 +20,7 @@ import java.nio.ByteOrder
  * no seeks are issued, flush() only clears the ended flag, counters stay
  * monotonic. Supports PCM 16-bit and PCM float (converted to 16-bit).
  */
+@UnstableApi
 class CapturingAudioSink(
     private val outFile: File,
 ) : AudioSink {

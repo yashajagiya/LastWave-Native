@@ -51,7 +51,7 @@ class LinkPlaybackResolver @Inject constructor(
 
     private fun extractUrlOrText(text: String): String {
         val trimmed = text.trim()
-        val urlRegex = Regex("(https?://[^\\s]+)")
+        val urlRegex = Regex("(https?://\\S+)")
         val match = urlRegex.find(trimmed)
         return match?.value ?: trimmed
     }
@@ -116,16 +116,13 @@ class LinkPlaybackResolver @Inject constructor(
                 val matched = tracks.firstOrNull { it.videoId == videoId }
                     ?: innerTube.searchSongs(url, limit = 1).firstOrNull()
 
-                if (matched != null) {
-                    matched.toPlayable()
-                } else {
-                    PlayableTrack(
+                matched?.toPlayable()
+                    ?: PlayableTrack(
                         title = "YouTube Stream",
                         artist = "YouTube Music",
                         artworkUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
                         videoId = videoId,
                     )
-                }
             }
 
             withContext(Dispatchers.Main) {

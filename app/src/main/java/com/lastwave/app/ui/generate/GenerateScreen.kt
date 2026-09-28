@@ -95,12 +95,13 @@ private val IconBadgeShape = RoundedCornerShape(14.dp)
 @Composable
 fun GenerateScreen(
     onNavigateToPlaylist: (Long?) -> Unit = {},
+    modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     viewModel: GenerateViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel, onNavigateToPlaylist) {
         viewModel.navEvents.collect { event ->
             when (event) {
                 is GenerateNavEvent.NavigateToPlaylistLoading -> runCatching { onNavigateToPlaylist(event.playlistId) }
